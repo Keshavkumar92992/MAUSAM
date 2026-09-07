@@ -45,7 +45,23 @@ const state = {
   searchOpen: false,
   searchResults: [],
   searchQuery: '',
+  fetchedAt: null,
 };
+
+const REFRESH_AFTER_MS = 10 * 60 * 1000;
+
+// The displayed time used to be `new Date()` at render, so the header
+// claimed to be freshly updated even when the data was hours old — and
+// re-claimed it on every persona tap. Report the real age instead.
+function freshnessLabel(fetchedAt) {
+  if (!fetchedAt) return '';
+  const mins = Math.floor((Date.now() - fetchedAt) / 60000);
+  if (mins < 1) return 'updated just now';
+  if (mins === 1) return 'updated 1 min ago';
+  if (mins < 60) return `updated ${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  return hrs === 1 ? 'updated 1 hour ago' : `updated ${hrs} hours ago`;
+}
 
 async function init() {
   const cfgRes = await fetch('./data/persona-config.json');
@@ -57,22 +73,50 @@ async function init() {
 
   render();
   await loadWeather();
+  startAutoRefresh();
 }
 
-async function loadWeather() {
-  state.status = 'loading';
-  render();
+// Weather used to be fetched exactly once per page load, so an app left
+// open showed frozen conditions indefinitely — it could be raining
+// outside while the screen still read "Clear". Refresh periodically, and
+// on return to the app, which is when a stale reading is most visible.
+function startAutoRefresh() {
+  const refreshIfStale = () => {
+    if (document.hidden || state.status === 'loading') return;
+    if (state.fetchedAt && Date.now() - state.fetchedAt < REFRESH_AFTER_MS) {
+      render(); // keep the "updated N min ago" label honest as time passes
+      return;
+    }
+    loadWeather({ silent: true });
+  };
+  setInterval(refreshIfStale, 60 * 1000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshIfStale();
+  });
+}
+
+// silent: refresh in the background without flashing the skeleton over
+// content the user is currently reading, and without wiping the screen
+// to an error state if a background poll happens to fail.
+async function loadWeather({ silent = false } = {}) {
+  if (!silent) {
+    state.status = 'loading';
+    render();
+  }
   try {
     const bundle = await fetchWeatherBundle(state.city.lat, state.city.lon);
     state.metrics = buildMetrics(bundle, state.city.name);
+    state.fetchedAt = Date.now();
     state.status = 'ready';
     render();
     state.travel = await buildTravelData(state.metrics.tempNow);
     render();
   } catch (err) {
     console.error(err);
-    state.status = 'error';
-    render();
+    if (!silent) {
+      state.status = 'error';
+      render();
+    }
   }
 }
 
@@ -238,13 +282,14 @@ function renderHeader(alert) {
         <span class="location-city">${state.city.name}${state.city.admin1 ? ', ' + state.city.admin1 : ''}</span>
         <span class="location-caret">▾</span>
       </div>
-      <div class="location-sub">${m ? `Open-Meteo model data · updated ${fmtTime(new Date())} IST` : 'Loading conditions…'}</div>
+      <div class="location-sub">${m ? `Open-Meteo model data · ${freshnessLabel(state.fetchedAt)}` : 'Loading conditions…'}</div>
 
       <div class="current-row">
         <div class="temp-block">
           <div class="deg-row">
             <span class="deg">${m ? m.tempNow : '--'}</span><span class="unit">°C</span>
           </div>
+          ${m && m.precip_now_mm > 0 ? `<div class="raining-now"><span class="live-dot"></span>Raining now · ${m.precip_now_mm} mm last hour</div>` : ''}
           <div class="condition">${m ? `${m.conditionLabel} · Feels like ${m.feelsLikeNow}°` : 'Loading…'}</div>
           <div class="minmax">${m ? `H ${m.tempMax}°&nbsp; L ${m.tempMin}° &nbsp;·&nbsp; Humidity ${m.humidityNow}%` : ''}</div>
         </div>

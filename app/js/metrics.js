@@ -76,6 +76,9 @@ export function buildMetrics({ forecast, air }, city) {
     visibility_km: +visibilityKm.toFixed(1),
     precip_prob_now: hourly.precipitation_probability?.[hIdx] ?? 0,
     precip_prob_max24: Math.max(...window24(hourly.precipitation_probability), 0),
+    // Actual measured precipitation for the last hour (mm) — this is what
+    // answers "is it raining right now", as opposed to forecast probability.
+    precip_now_mm: +(cur.precipitation ?? 0).toFixed(1),
     soil_moisture_pct: Math.round(soilMoisture),
     rain_48h_mm: Math.round(rain48h),
     min_temp_c: Math.round(minTempNext),

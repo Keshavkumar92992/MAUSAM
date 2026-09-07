@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mausam · Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300;400;500;600;700&family=Noto+Serif+Devanagari:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js" integrity="sha384-Ukv1p/xTma6P4/2bY5KzWBw+ydSpXmhCMtyciIQVDJ1RmOxtCYNMF1uXT9T63H67" crossorigin="anonymous"></script>
+<style>
+  body{margin:0;background:#E7E5DF;font-family:'Noto Sans',system-ui,sans-serif;display:flex;justify-content:center;align-items:flex-start;padding:36px 20px 60px;color:#171A1C}
+  a{color:#1C5C93;text-decoration:none}a:hover{color:#123f66}
+  ::-webkit-scrollbar{display:none}
+  .phone{width:402px;height:874px;border-radius:48px;overflow:hidden;position:relative;background:#0C1622;box-shadow:0 40px 80px rgba(0,0,0,.18),0 0 0 1px rgba(0,0,0,.12)}
+  .island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:126px;height:37px;border-radius:24px;background:#000;z-index:50}
+  .status{position:absolute;top:0;left:0;right:0;height:56px;display:flex;align-items:center;justify-content:space-between;padding:20px 30px 0;box-sizing:border-box;z-index:20;font-size:13px;font-weight:600;color:#fff}
+  .home-ind{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:139px;height:5px;border-radius:100px;background:rgba(255,255,255,.7);z-index:60;pointer-events:none}
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column}
+  .chip{flex:none;padding:8px 13px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:rgba(255,255,255,.72)}
+  .chip.on{background:#F5F4EF;color:#0C1622;border-color:#F5F4EF}
+  .navitem{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:10px;font-weight:600;color:rgba(255,255,255,.72)}
+  .navitem.on{color:#fff;font-weight:700}
+  input[type=range]{-webkit-appearance:none;width:100%;height:26px;background:transparent;margin:0}
+  input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:4px;background:linear-gradient(90deg,rgba(255,255,255,.22) 0 20%,rgba(79,184,201,.55) 20% 100%)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;margin-top:-8px;border-radius:50%;background:#F5F4EF;border:3px solid #4FB8C9;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+  input[type=range]::-moz-range-track{height:6px;border-radius:4px;background:rgba(255,255,255,.28)}
+  input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#F5F4EF;border:3px solid #4FB8C9}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="island"></div>
+  <div class="status"><span>9:41</span><span style="font-size:11px;letter-spacing:.06em">IMD · LIVE</span></div>
+  <div class="home-ind"></div>
+
+  <div class="screen">
+    <div style="padding:64px 20px 12px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <span style="font-size:18px;font-weight:700;color:#fff">Radar</span>
+          <span style="font-family:'Noto Serif Devanagari',serif;font-size:13px;color:rgba(255,255,255,.6)">रडार</span>
+        </div>
+        <a href="Mausam Home.dc.html" style="font-size:12px;font-weight:600;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:7px 12px">← Home</a>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:5px">Doppler composite · New Delhi (Palam) · <span id="stamp">now</span></div>
+    </div>
+
+    <div style="display:flex;gap:8px;overflow-x:auto;padding:2px 20px 12px">
+      <div class="chip on" data-layer="rain">Rainfall</div>
+      <div class="chip" data-layer="cloud">Cloud cover</div>
+      <div class="chip" data-layer="lightning">Lightning</div>
+      <div class="chip" data-layer="wind">Wind</div>
+    </div>
+
+    <div style="position:relative;flex:1;min-height:0;margin:0 14px;border-radius:22px;overflow:hidden;background:radial-gradient(120% 90% at 50% 10%,#16283C,#0A121C 70%);border:1px solid rgba(255,255,255,.10)">
+      <svg id="map" style="position:absolute;inset:0;width:100%;height:100%"></svg>
+      <div style="position:absolute;left:12px;bottom:12px;display:flex;flex-direction:column;gap:6px;background:rgba(10,18,28,.66);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:10px 12px">
+        <div id="legTitle" style="font-size:8.5px;font-weight:700;letter-spacing:.14em;color:rgba(255,255,255,.72)">RAINFALL mm/h</div>
+        <div style="display:flex;align-items:center;gap:7px">
+          <div id="legRamp" style="width:96px;height:7px;border-radius:4px;background:linear-gradient(90deg,#4FB8C9,#3E8FD8,#7A5AA8,#C2452D)"></div>
+        </div>
+        <div id="legTicks" style="display:flex;justify-content:space-between;font-size:9px;font-weight:600;color:rgba(255,255,255,.72)"><span>2.5</span><span>15</span><span>65+</span></div>
+      </div>
+      <div style="position:absolute;right:12px;top:12px;background:rgba(10,18,28,.66);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:7px 10px;font-size:10px;font-weight:600;color:rgba(255,255,255,.72)">Range 250 km</div>
+    </div>
+
+    <div style="padding:14px 20px 6px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div id="play" style="width:38px;height:38px;flex:none;border-radius:19px;background:#F5F4EF;color:#0C1622;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;cursor:pointer">▶</div>
+        <div style="flex:1;min-width:0">
+          <input id="time" type="range" min="-30" max="120" step="5" value="0">
+          <div style="display:flex;justify-content:space-between;font-size:9.5px;font-weight:600;color:rgba(255,255,255,.6);margin-top:-2px">
+            <span>−30 min</span><span>NOW</span><span>+2 h nowcast</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:11px;align-items:flex-start;padding:13px 14px;border-radius:16px;background:rgba(201,119,42,.16);border:1px solid rgba(226,163,80,.38)">
+        <div style="width:22px;height:22px;flex:none;border-radius:7px;background:#E2A350;color:#2A1B06;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center">!</div>
+        <div>
+          <div style="font-size:11.5px;font-weight:700;letter-spacing:.05em;color:#F0C889">NOWCAST · NEXT 2 HOURS</div>
+          <div id="cellText" style="font-size:12.5px;line-height:1.45;color:#F5EFE3;margin-top:3px">Storm cell 46 km south-west of New Delhi, moving north-east at 28 km/h. Moderate to heavy rain likely from 4:15 PM.</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);padding:12px 8px 34px;border-top:1px solid rgba(255,255,255,.10);background:rgba(12,22,34,.9)">
+      <a href="Mausam Home.dc.html" class="navitem"><div style="width:19px;height:19px;border-radius:6px;background:rgba(255,255,255,.32)"></div>Home</a>
+      <div class="navitem on"><div style="width:19px;height:19px;border-radius:50%;background:#fff"></div>Radar</div>
+      <div class="navitem"><div style="width:19px;height:19px;border-radius:6px;background:rgba(255,255,255,.32)"></div>Alerts</div>
+      <div class="navitem"><div style="width:19px;height:19px;border-radius:6px;background:rgba(255,255,255,.32)"></div>Saved</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const MIN_R = 26;
+const CELLS = [
+  { lon: 76.4, lat: 27.6, r: 62, i: 3, vx: 0.0055, vy: 0.0032, grow: 0.004 },
+  { lon: 73.4, lat: 19.4, r: 48, i: 2, vx: 0.0040, vy: 0.0018, grow: 0.001 },
+  { lon: 88.0, lat: 22.2, r: 55, i: 3, vx: -0.0022, vy: 0.0026, grow: 0.002 },
+  { lon: 80.4, lat: 13.4, r: 38, i: 1, vx: -0.0030, vy: 0.0012, grow: 0.001 },
+  { lon: 92.6, lat: 26.2, r: 58, i: 4, vx: -0.0018, vy: -0.0010, grow: 0 },
+  { lon: 76.1, lat: 10.4, r: 44, i: 2, vx: 0.0026, vy: 0.0016, grow: 0.001 },
+  { lon: 70.9, lat: 22.6, r: 34, i: 1, vx: 0.0048, vy: 0.0022, grow: 0.002 }
+];
+const CITIES = [
+  { n: 'New Delhi', lon: 77.21, lat: 28.61, hq: true },
+  { n: 'Mumbai', lon: 72.88, lat: 19.08 },
+  { n: 'Kolkata', lon: 88.36, lat: 22.57 },
+  { n: 'Chennai', lon: 80.27, lat: 13.08 },
+  { n: 'Guwahati', lon: 91.75, lat: 26.14 }
+];
+const RAMP = ['#4FB8C9', '#3E8FD8', '#7A5AA8', '#C2452D', '#8E2418'];
+
+const svg = d3.select('#map');
+let projection, path, W = 0, H = 0, t = 0, layer = 'rain', playing = false, raf = null;
+
+function stampFor(mins) {
+  const base = new Date(2026, 8, 7, 15, 40);
+  base.setMinutes(base.getMinutes() + mins);
+  const h = base.getHours(), m = String(base.getMinutes()).padStart(2, '0');
+  const ap = h >= 12 ? 'PM' : 'AM', hh = ((h + 11) % 12) + 1;
+  return (mins < 0 ? 'observed ' : mins === 0 ? 'observed ' : 'forecast ') + hh + ':' + m + ' ' + ap;
+}
+
+d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json').then(topo => {
+  const countries = topojson.feature(topo, topo.objects.countries);
+  const india = countries.features.find(f => f.id === '356');
+  const rect = document.getElementById('map').getBoundingClientRect();
+  W = rect.width; H = rect.height;
+  projection = d3.geoMercator().fitExtent([[16, 22], [W - 16, H - 22]], india);
+  path = d3.geoPath(projection);
+
+  const defs = svg.append('defs');
+  RAMP.forEach((c, k) => {
+    const g = defs.append('radialGradient').attr('id', 'echo' + k);
+    g.append('stop').attr('offset', '0%').attr('stop-color', c).attr('stop-opacity', .92);
+    g.append('stop').attr('offset', '55%').attr('stop-color', c).attr('stop-opacity', .42);
+    g.append('stop').attr('offset', '100%').attr('stop-color', c).attr('stop-opacity', 0);
+  });
+
+  const graticule = d3.geoGraticule().step([5, 5]);
+  svg.append('path').datum(graticule()).attr('d', path)
+    .attr('fill', 'none').attr('stroke', 'rgba(255,255,255,.06)').attr('stroke-width', 1);
+
+  svg.append('g').selectAll('path').data(countries.features.filter(f => f.id !== '356')).join('path')
+    .attr('d', path).attr('fill', 'rgba(255,255,255,.035)').attr('stroke', 'rgba(255,255,255,.10)').attr('stroke-width', .8);
+
+  svg.append('path').datum(india).attr('d', path)
+    .attr('fill', 'rgba(255,255,255,.055)').attr('stroke', 'rgba(255,255,255,.55)').attr('stroke-width', 1.4);
+
+  const clip = defs.append('clipPath').attr('id', 'indiaClip');
+  clip.append('path').datum(india).attr('d', path);
+
+  const gc = defs.append('radialGradient').attr('id', 'echoCloud');
+  gc.append('stop').attr('offset', '0%').attr('stop-color', '#E8EDF2').attr('stop-opacity', .78);
+  gc.append('stop').attr('offset', '60%').attr('stop-color', '#C9D4DE').attr('stop-opacity', .40);
+  gc.append('stop').attr('offset', '100%').attr('stop-color', '#C9D4DE').attr('stop-opacity', 0);
+
+  svg.append('g').attr('id', 'echoes').attr('clip-path', 'url(#indiaClip)');
+  svg.append('g').attr('id', 'arrows').attr('clip-path', 'url(#indiaClip)');
+
+  const cg = svg.append('g');
+  CITIES.forEach(c => {
+    const p = projection([c.lon, c.lat]);
+    cg.append('circle').attr('cx', p[0]).attr('cy', p[1]).attr('r', c.hq ? 4 : 2.4)
+      .attr('fill', c.hq ? '#F5F4EF' : 'rgba(245,244,239,.72)')
+      .attr('stroke', c.hq ? '#C2452D' : 'none').attr('stroke-width', c.hq ? 2 : 0);
+    cg.append('text').attr('x', p[0] + 7).attr('y', p[1] + 3.5)
+      .attr('fill', c.hq ? '#fff' : 'rgba(255,255,255,.66)')
+      .attr('font-size', c.hq ? 10.5 : 9).attr('font-weight', c.hq ? 700 : 600)
+      .attr('font-family', "'Noto Sans',sans-serif").text(c.n);
+  });
+
+  draw();
+});
+
+function draw() {
+  const scale = projection.scale();
+  const kmToPx = scale / 6371;
+  const g = svg.select('#echoes');
+  const cells = CELLS.filter(c => c.lat > 8).map(c => ({
+    x: projection([c.lon + c.vx * t, c.lat + c.vy * t])[0],
+    y: projection([c.lon + c.vx * t, c.lat + c.vy * t])[1],
+    r: (c.r + c.grow * t * 100) * kmToPx * 6.5,
+    i: Math.max(0, Math.min(4, Math.round(c.i + (c.grow > 0.002 ? t / 60 : 0)))),
+    dx: (projection([c.lon + c.vx * (t + 55), c.lat + c.vy * (t + 55)])[0] - projection([c.lon + c.vx * t, c.lat + c.vy * t])[0]),
+    dy: (projection([c.lon + c.vx * (t + 55), c.lat + c.vy * (t + 55)])[1] - projection([c.lon + c.vx * t, c.lat + c.vy * t])[1])
+  }));
+  const isRain = layer === 'rain' || layer === 'lightning';
+  const grad = d => layer === 'cloud' ? 'url(#echoCloud)' : 'url(#echo' + (isRain ? d.i : 2) + ')';
+  const sel = g.selectAll('g.cell').data(cells);
+  const enter = sel.enter().append('g').attr('class', 'cell');
+  enter.append('circle').attr('class', 'outer');
+  enter.append('circle').attr('class', 'core');
+  const all = enter.merge(sel);
+  all.select('.outer')
+    .attr('cx', d => d.x).attr('cy', d => d.y).attr('r', d => d.r)
+    .attr('fill', grad)
+    .attr('opacity', layer === 'cloud' ? .92 : layer === 'wind' ? .62 : 1);
+  all.select('.core')
+    .attr('cx', d => d.x).attr('cy', d => d.y).attr('r', d => d.r * .42)
+    .attr('fill', d => layer === 'cloud' ? 'url(#echoCloud)' : 'url(#echo' + (isRain ? Math.min(4, d.i + 1) : 2) + ')')
+    .attr('opacity', layer === 'rain' ? .85 : layer === 'lightning' ? .95 : layer === 'cloud' ? .5 : .3);
+
+  const ag = svg.select('#arrows');
+  const asel = ag.selectAll('g.arrow').data(layer === 'wind' ? cells : []);
+  asel.exit().remove();
+  const aen = asel.enter().append('g').attr('class', 'arrow');
+  aen.append('line').attr('class', 'shaft').attr('stroke', '#BFE7F0').attr('stroke-width', 2.6).attr('stroke-linecap', 'round');
+  aen.append('path').attr('class', 'head').attr('fill', 'none').attr('stroke', '#BFE7F0').attr('stroke-width', 2.6).attr('stroke-linecap', 'round');
+  const aall = aen.merge(asel);
+  const L0 = 34;
+  const unit = d => { const m = Math.hypot(d.dx, d.dy) || 1; return [d.dx / m, d.dy / m]; };
+  aall.select('.shaft')
+    .attr('x1', d => { const u = unit(d); return d.x - u[0] * L0 / 2; })
+    .attr('y1', d => { const u = unit(d); return d.y - u[1] * L0 / 2; })
+    .attr('x2', d => { const u = unit(d); return d.x + u[0] * L0 / 2; })
+    .attr('y2', d => { const u = unit(d); return d.y + u[1] * L0 / 2; });
+  aall.select('.head').attr('d', d => {
+    const u = unit(d), tipX = d.x + u[0] * L0 / 2, tipY = d.y + u[1] * L0 / 2, a = Math.atan2(u[1], u[0]), b = 9;
+    const p1 = [tipX - b * Math.cos(a - 0.42), tipY - b * Math.sin(a - 0.42)];
+    const p2 = [tipX - b * Math.cos(a + 0.42), tipY - b * Math.sin(a + 0.42)];
+    return 'M' + p1[0] + ',' + p1[1] + 'L' + tipX + ',' + tipY + 'L' + p2[0] + ',' + p2[1];
+  });
+
+  const LEG = {
+    rain: ['RAINFALL mm/h', 'linear-gradient(90deg,#4FB8C9,#3E8FD8,#7A5AA8,#C2452D)', ['2.5', '15', '65+']],
+    cloud: ['CLOUD COVER %', 'linear-gradient(90deg,rgba(255,255,255,.18),rgba(255,255,255,.55),rgba(255,255,255,.92))', ['20', '60', '100']],
+    lightning: ['STRIKES / 10 MIN', 'linear-gradient(90deg,#F2C86A,#E2A350,#C2452D)', ['1', '12', '40+']],
+    wind: ['GUSTS km/h', 'linear-gradient(90deg,#4FB8C9,#7A5AA8,#C2452D)', ['20', '45', '70+']]
+  }[layer];
+  document.getElementById('legTitle').textContent = LEG[0];
+  document.getElementById('legRamp').style.background = LEG[1];
+  document.getElementById('legTicks').innerHTML = LEG[2].map(v => '<span>' + v + '</span>').join('');
+  document.getElementById('stamp').textContent = stampFor(t);
+  const lead = t <= 0 ? 'now' : 'in ' + t + ' min';
+  document.getElementById('cellText').textContent = layer === 'wind'
+    ? 'Squall line approaching from the south-west; gusts of 40–50 km/h expected over Delhi NCR ' + lead + '.'
+    : layer === 'lightning'
+    ? 'Cloud-to-ground lightning detected 46 km south-west of New Delhi — 34 strikes in the last 10 minutes.'
+    : layer === 'cloud'
+    ? 'Dense convective cloud mass over Haryana and west Uttar Pradesh, tops above 12 km.'
+    : 'Storm cell 46 km south-west of New Delhi, moving north-east at 28 km/h. Moderate to heavy rain likely ' + lead + '.';
+}
+
+const slider = document.getElementById('time');
+slider.addEventListener('input', e => { t = +e.target.value; draw(); });
+document.querySelectorAll('.chip').forEach(ch => ch.addEventListener('click', () => {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  ch.classList.add('on'); layer = ch.dataset.layer; draw();
+}));
+const playBtn = document.getElementById('play');
+playBtn.addEventListener('click', () => {
+  playing = !playing;
+  playBtn.textContent = playing ? '❙❙' : '▶';
+  if (playing) loop(); else cancelAnimationFrame(raf);
+});
+let last = 0;
+function loop(ts) {
+  if (!playing) return;
+  if (!last || ts - last > 90) {
+    last = ts || 0;
+    t = t >= 120 ? -30 : t + 5;
+    slider.value = t; draw();
+  }
+  raf = requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mausam-static",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["/Users/keshavkumar/Desktop/design_handoff_mausam/app/serve.py"],
+      "port": 5173
+    }
+  ]
+}

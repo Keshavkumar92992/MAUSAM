@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<script src="./image-slot.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300;400;500;600;700&family=Noto+Serif+Devanagari:wght@500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#E7E5DF;font-family:'Noto Sans',system-ui,sans-serif;display:flex;justify-content:center;align-items:flex-start;padding:36px 20px 60px}
+a{color:#1C5C93}a:hover{color:#123f66}
+*::-webkit-scrollbar{display:none}
+</style>
+</helmet>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ 402 }}" height="{{ 874 }}" hint-size="402px,874px">
+<div style="position:relative;min-height:100%;background:#F5F4EF;font-family:'Noto Sans',system-ui,sans-serif;color:#171A1C">
+
+  <sc-if value="{{ isMorning }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;top:0;left:0;right:0;height:440px;background:linear-gradient(180deg,#B9D9F2 0%,#D7E7F2 42%,#EFEDE6 78%,#F5F4EF 100%)"></div>
+  </sc-if>
+  <sc-if value="{{ isAfternoon }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;top:0;left:0;right:0;height:440px;background:linear-gradient(180deg,#9EC9EC 0%,#CFE2EF 40%,#EEEDE5 78%,#F5F4EF 100%)"></div>
+  </sc-if>
+  <sc-if value="{{ isDusk }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;top:0;left:0;right:0;height:440px;background:linear-gradient(180deg,#F2C9A4 0%,#EFD9C6 38%,#F0EBE2 78%,#F5F4EF 100%)"></div>
+  </sc-if>
+
+  <div style="position:absolute;inset:0;background:radial-gradient(120% 55% at 12% 46%,rgba(44,110,168,.10),transparent 62%),radial-gradient(90% 45% at 92% 68%,rgba(242,169,59,.13),transparent 60%),radial-gradient(110% 40% at 50% 100%,rgba(46,125,91,.10),transparent 65%)"></div>
+  <div style="position:absolute;inset:0;opacity:.5;background-image:repeating-linear-gradient(135deg,rgba(23,26,28,.035) 0 1px,transparent 1px 7px)"></div>
+
+  <sc-if value="{{ isHealth }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;top:0;left:0;right:0;height:470px;overflow:hidden">
+      <div style="position:absolute;left:0;right:-190px;top:-300px;height:790px">
+        <image-slot id="mausam-health-bg" shape="rect" fit="cover" src="uploads/pasted-1788778819523-0.png" placeholder="Drop a calm-living photo"></image-slot>
+      </div>
+    </div>
+    <div style="position:absolute;top:0;left:0;right:0;height:470px;pointer-events:none;background:linear-gradient(180deg,rgba(245,244,239,.22) 0%,rgba(245,244,239,.14) 50%,rgba(245,244,239,.55) 84%,rgba(245,244,239,.97) 100%),linear-gradient(96deg,rgba(250,244,236,.88) 0%,rgba(250,244,236,.62) 36%,rgba(250,244,236,.06) 74%,rgba(250,244,236,0) 100%)"></div>
+    <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#C2452D,#E0872A 55%,#F2C86A)"></div>
+  </sc-if>
+
+  <sc-if value="{{ isTravel }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;top:0;left:0;right:0;height:470px;overflow:hidden">
+      <div style="position:absolute;left:0;right:-140px;top:-150px;height:700px">
+            <image-slot id="mausam-travel-bg" shape="rect" fit="cover" src="uploads/pasted-1788778868394-0.png" placeholder="Drop a travel photo"></image-slot>
+      </div>
+    </div>
+    <div style="position:absolute;top:0;left:0;right:0;height:470px;pointer-events:none;background:linear-gradient(180deg,rgba(245,244,239,.22) 0%,rgba(245,244,239,.14) 50%,rgba(245,244,239,.55) 84%,rgba(245,244,239,.97) 100%),linear-gradient(96deg,rgba(238,243,250,.88) 0%,rgba(238,243,250,.62) 36%,rgba(238,243,250,.06) 74%,rgba(238,243,250,0) 100%)"></div>
+    <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#7A5AA8,#2C6EA8 55%,#F2C86A)"></div>
+  </sc-if>
+
+  <sc-if value="{{ isFamily }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;top:0;left:0;right:0;height:470px;overflow:hidden">
+      <div style="position:absolute;left:0;right:-90px;top:-90px;height:560px">
+            <image-slot id="mausam-family-bg" shape="rect" fit="cover" src="uploads/pasted-1788778855390-0.png" placeholder="Drop a school-run photo"></image-slot>
+      </div>
+    </div>
+    <div style="position:absolute;top:0;left:0;right:0;height:470px;pointer-events:none;background:linear-gradient(180deg,rgba(245,244,239,.22) 0%,rgba(245,244,239,.14) 50%,rgba(245,244,239,.55) 84%,rgba(245,244,239,.97) 100%),linear-gradient(96deg,rgba(250,245,236,.88) 0%,rgba(250,245,236,.62) 36%,rgba(250,245,236,.06) 74%,rgba(250,245,236,0) 100%)"></div>
+    <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#C9772A,#E0A94A 55%,#4C7A2E)"></div>
+  </sc-if>
+
+  <sc-if value="{{ isAgri }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;top:0;left:0;right:0;height:470px;overflow:hidden">
+      <div style="position:absolute;left:0;right:-160px;top:-280px;height:760px">
+            <image-slot id="mausam-agri-bg" shape="rect" fit="cover" src="uploads/pasted-1788778843345-0.png" placeholder="Drop a farm photo"></image-slot>
+      </div>
+    </div>
+    <div style="position:absolute;top:0;left:0;right:0;height:470px;pointer-events:none;background:linear-gradient(180deg,rgba(245,244,239,.22) 0%,rgba(245,244,239,.14) 50%,rgba(245,244,239,.55) 84%,rgba(245,244,239,.97) 100%),linear-gradient(96deg,rgba(242,247,238,.88) 0%,rgba(242,247,238,.62) 36%,rgba(242,247,238,.06) 74%,rgba(242,247,238,0) 100%)"></div>
+    <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#4C7A2E,#A3D64A 55%,#C9772A)"></div>
+  </sc-if>
+
+  <sc-if value="{{ isCommute }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;top:0;left:0;right:0;height:470px;overflow:hidden">
+      <div style="position:absolute;left:0;right:-120px;top:-190px;height:700px">
+            <image-slot id="mausam-commute-bg" shape="rect" fit="cover" src="uploads/pasted-1788778829468-0.png" placeholder="Drop a city-commute photo"></image-slot>
+      </div>
+    </div>
+    <div style="position:absolute;top:0;left:0;right:0;height:470px;pointer-events:none;background:linear-gradient(180deg,rgba(245,244,239,.22) 0%,rgba(245,244,239,.14) 50%,rgba(245,244,239,.55) 84%,rgba(245,244,239,.97) 100%),linear-gradient(96deg,rgba(238,246,247,.88) 0%,rgba(238,246,247,.62) 36%,rgba(238,246,247,.06) 74%,rgba(238,246,247,0) 100%)"></div>
+    <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#1F6E7A,#4FB8C9 55%,#C9772A)"></div>
+  </sc-if>
+
+  <sc-if value="{{ isBeach }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;top:0;left:0;right:0;height:470px;overflow:hidden">
+      <div style="position:absolute;left:0;right:0;top:-330px;height:800px">
+        <image-slot id="mausam-beach-surf" shape="rect" fit="cover" src="uploads/pasted-1788779859882-0.png" placeholder="Drop a beach photo"></image-slot>
+      </div>
+    </div>
+    <div style="position:absolute;top:0;left:0;right:0;height:470px;pointer-events:none;background:linear-gradient(180deg,rgba(245,244,239,.22) 0%,rgba(245,244,239,.14) 50%,rgba(245,244,239,.55) 84%,rgba(245,244,239,.97) 100%),linear-gradient(96deg,rgba(248,243,242,.86) 0%,rgba(248,243,242,.60) 36%,rgba(248,243,242,.04) 74%,rgba(248,243,242,0) 100%)"></div>
+    <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#2C6EA8,#4FB8C9 55%,#F2C86A)"></div>
+  </sc-if>
+
+  <sc-if value="{{ isFitness }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;top:0;left:0;right:0;height:470px;overflow:hidden">
+      <div style="position:absolute;left:0;right:0;top:-30px;height:710px">
+        <image-slot id="mausam-fitness-runner" shape="rect" fit="cover" src="uploads/pasted-1788777847681-0.png" placeholder="Drop a runner photo"></image-slot>
+      </div>
+    </div>
+    <div style="position:absolute;top:0;left:0;right:0;height:470px;pointer-events:none;background:linear-gradient(180deg,rgba(245,244,239,.22) 0%,rgba(245,244,239,.14) 50%,rgba(245,244,239,.55) 84%,rgba(245,244,239,.97) 100%),linear-gradient(96deg,rgba(244,247,236,.88) 0%,rgba(244,247,236,.62) 36%,rgba(244,247,236,.06) 74%,rgba(244,247,236,0) 100%)"></div>
+    <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#2E7D5B,#A3D64A 55%,#F2A93B)"></div>
+  </sc-if>
+
+  <div style="position:relative;padding:60px 20px 26px">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px">
+      <div style="display:flex;align-items:baseline;gap:9px">
+        <span style="font-size:22px;font-weight:700;line-height:1;letter-spacing:-.015em">Mausam</span>
+        <span style="font-family:'Noto Serif Devanagari',serif;font-weight:500;font-size:15px;color:rgba(23,26,28,.66)">मौसम</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:32px;height:32px;border-radius:16px;background:rgba(255,255,255,.66);border:1px solid rgba(23,26,28,.09);display:flex;align-items:center;justify-content:center;font-size:14px;color:#171A1C">⌕</div>
+        <div style="width:32px;height:32px;border-radius:16px;background:rgba(255,255,255,.66);border:1px solid rgba(23,26,28,.09);display:flex;align-items:center;justify-content:center;font-size:13px;color:#171A1C">☰</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+      <div style="width:6px;height:6px;border-radius:3px;background:#C2452D"></div>
+      <span style="font-size:16px;font-weight:600;letter-spacing:-.01em">New Delhi, Delhi</span>
+      <span style="font-size:11px;color:rgba(23,26,28,.62)">▾</span>
+    </div>
+    <div style="font-size:11px;color:rgba(23,26,28,.62);margin-bottom:14px">Safdarjung station · updated 9:40 AM IST</div>
+
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+      <div>
+        <div style="display:flex;align-items:flex-start">
+          <span style="font-size:80px;font-weight:300;line-height:.92;letter-spacing:-.045em">33</span>
+          <span style="font-size:26px;font-weight:300;line-height:1;padding-top:8px">°C</span>
+        </div>
+        <div style="font-size:14px;font-weight:600;margin-top:6px">Haze · Feels like 39°</div>
+        <div style="font-size:12px;color:rgba(23,26,28,.66);margin-top:3px">H 36° &nbsp;L 27° &nbsp;·&nbsp; Humidity 68%</div>
+      </div>
+      <div style="width:96px;height:96px;flex:none;position:relative">
+        <div style="position:absolute;inset:14px;border-radius:50%;background:radial-gradient(circle at 34% 32%,#FFE9B0,#F2A93B 70%,#E0872A);box-shadow:0 0 34px rgba(242,169,59,.45)"></div>
+        <div style="position:absolute;left:6px;right:0;bottom:20px;height:26px;border-radius:16px;background:rgba(255,255,255,.82);box-shadow:0 6px 16px rgba(23,26,28,.10)"></div>
+        <div style="position:absolute;left:22px;bottom:32px;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.9)"></div>
+      </div>
+    </div>
+
+    <sc-if value="{{ showAlert }}" hint-placeholder-val="{{ true }}">
+      <div style="margin-top:18px;display:flex;gap:11px;align-items:flex-start;padding:13px 14px;border-radius:16px;background:#FDF1DC;border:1px solid rgba(201,119,42,.28)">
+        <div style="width:22px;height:22px;flex:none;border-radius:7px;background:#C9772A;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center">!</div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#8A4F13;letter-spacing:.04em">YELLOW ALERT · IMD NOWCAST</div>
+          <div style="font-size:12.5px;line-height:1.45;color:#5D3A11;margin-top:3px">Thunderstorm with gusty winds (40–50 km/h) likely after 4 PM today. Secure loose objects outdoors.</div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+
+  <div style="position:relative;padding:0 0 6px">
+    <div style="display:flex;gap:8px;overflow-x:auto;padding:2px 20px 12px">
+      <sc-for list="{{ personas }}" as="p" hint-placeholder-count="8">
+        <div onClick="{{ p.select }}" style="flex:none;display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:999px;cursor:pointer;font-size:12.5px;font-weight:600;white-space:nowrap;transition:background .18s,color .18s;background:{{ p.bg }};color:{{ p.fg }};border:1px solid {{ p.border }}">
+          <span style="width:6px;height:6px;border-radius:3px;background:{{ p.dot }}"></span>
+          {{ p.label }}
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="position:relative;padding:4px 20px 0">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:11px">
+      <div style="font-size:13px;font-weight:700;letter-spacing:-.01em">{{ activeLabel }}</div>
+      <div style="font-size:11px;color:rgba(23,26,28,.66)">{{ activeSummary }}</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <sc-for list="{{ tiles }}" as="t" hint-placeholder-count="4">
+        <div style="background:#fff;border:1px solid rgba(23,26,28,.07);border-radius:18px;padding:13px 14px 12px;box-shadow:0 1px 2px rgba(23,26,28,.04)">
+          <div style="font-size:9.5px;font-weight:700;letter-spacing:.13em;color:rgba(23,26,28,.66)">{{ t.label }}</div>
+          <div style="display:flex;align-items:baseline;gap:4px;margin-top:7px">
+            <span style="font-size:23px;font-weight:600;letter-spacing:-.03em;line-height:1">{{ t.value }}</span>
+            <span style="font-size:11px;font-weight:600;color:rgba(23,26,28,.62)">{{ t.unit }}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
+            <span style="width:7px;height:7px;border-radius:4px;flex:none;background:{{ t.color }}"></span>
+            <span style="font-size:11.5px;font-weight:600;color:{{ t.color }}">{{ t.status }}</span>
+          </div>
+          <div style="margin-top:9px;height:4px;border-radius:3px;background:rgba(23,26,28,.07);overflow:hidden">
+            <div style="height:100%;border-radius:3px;width:{{ t.pct }};background:{{ t.color }}"></div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="margin-top:12px;background:#fff;border:1px solid rgba(23,26,28,.07);border-radius:20px;padding:15px 16px 6px;box-shadow:0 1px 2px rgba(23,26,28,.04)">
+      <div style="display:flex;align-items:baseline;justify-content:space-between">
+        <div style="font-size:13px;font-weight:700">{{ panelTitle }}</div>
+        <div style="font-size:11px;color:rgba(23,26,28,.66)">{{ panelMeta }}</div>
+      </div>
+      <div style="margin-top:4px">
+        <sc-for list="{{ panelRows }}" as="r" hint-placeholder-count="3">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid rgba(23,26,28,.07)">
+            <div style="min-width:0">
+              <div style="font-size:13px;font-weight:600">{{ r.label }}</div>
+              <div style="font-size:11.5px;color:rgba(23,26,28,.62);margin-top:2px">{{ r.note }}</div>
+            </div>
+            <div style="font-size:13.5px;font-weight:700;white-space:nowrap;color:{{ r.color }}">{{ r.value }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;display:flex;gap:11px;align-items:flex-start;padding:14px;border-radius:18px;background:#EAF0EC;border:1px solid rgba(46,125,91,.22)">
+      <div style="width:22px;height:22px;flex:none;border-radius:7px;background:#2E7D5B"></div>
+      <div>
+        <div style="font-size:9.5px;font-weight:700;letter-spacing:.13em;color:#2E7D5B">GUIDANCE FOR YOU</div>
+        <div style="font-size:12.5px;line-height:1.5;color:#22392F;margin-top:4px">{{ tip }}</div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;background:#fff;border:1px solid rgba(23,26,28,.07);border-radius:20px;padding:15px 14px 14px;box-shadow:0 1px 2px rgba(23,26,28,.04)">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 2px 12px">
+        <div style="font-size:13px;font-weight:700">7-day outlook</div>
+        <div style="font-size:11px;color:rgba(23,26,28,.66)">Rain probability</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">
+        <sc-for list="{{ days }}" as="d" hint-placeholder-count="7">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px">
+            <div style="font-size:10.5px;font-weight:700;color:rgba(23,26,28,.66)">{{ d.day }}</div>
+            <div style="width:18px;height:18px;border-radius:50%;background:{{ d.icon }}"></div>
+            <div style="width:6px;height:44px;border-radius:4px;background:rgba(23,26,28,.07);display:flex;align-items:flex-end;overflow:hidden">
+              <div style="width:100%;border-radius:4px;background:#2C6EA8;height:{{ d.rain }}"></div>
+            </div>
+            <div style="font-size:10px;font-weight:700;color:#2C6EA8">{{ d.rainLabel }}</div>
+            <div style="font-size:12px;font-weight:700">{{ d.hi }}</div>
+            <div style="font-size:11px;color:rgba(23,26,28,.66);margin-top:-4px">{{ d.lo }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="font-size:10.5px;line-height:1.6;color:rgba(23,26,28,.66);text-align:center;padding:16px 10px 8px">
+      India Meteorological Department<br>Ministry of Earth Sciences, Government of India
+    </div>
+  </div>
+
+  <div style="position:sticky;bottom:0;background:rgba(245,244,239,.86);backdrop-filter:blur(14px);border-top:1px solid rgba(23,26,28,.08);display:grid;grid-template-columns:repeat(4,1fr);padding:10px 8px 30px">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+      <div style="width:19px;height:19px;border-radius:6px;background:#171A1C"></div>
+      <span style="font-size:10px;font-weight:700;color:#171A1C">Home</span>
+    </div>
+    <a href="Mausam Radar.html" style="display:flex;flex-direction:column;align-items:center;gap:5px;text-decoration:none">
+      <div style="width:19px;height:19px;border-radius:50%;background:rgba(23,26,28,.28)"></div>
+      <span style="font-size:10px;font-weight:600;color:rgba(23,26,28,.66)">Radar</span>
+    </a>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+      <div style="width:19px;height:19px;border-radius:6px;background:rgba(23,26,28,.28)"></div>
+      <span style="font-size:10px;font-weight:600;color:rgba(23,26,28,.66)">Alerts</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+      <div style="width:19px;height:19px;border-radius:6px;background:rgba(23,26,28,.28)"></div>
+      <span style="font-size:10px;font-weight:600;color:rgba(23,26,28,.66)">Saved</span>
+    </div>
+  </div>
+</div>
+</x-import>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:480,&quot;height&quot;:960},&quot;defaultPersona&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;health&quot;,&quot;fitness&quot;,&quot;beach&quot;,&quot;travel&quot;,&quot;family&quot;,&quot;agri&quot;,&quot;commute&quot;,&quot;events&quot;],&quot;default&quot;:&quot;health&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Personalization&quot;},&quot;sky&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Morning&quot;,&quot;Afternoon&quot;,&quot;Dusk&quot;],&quot;default&quot;:&quot;Morning&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;showAlert&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Content&quot;}}">
+const C = { ok: '#2E7D5B', warn: '#C9772A', bad: '#C2452D', info: '#2C6EA8' };
+
+const DATA = {
+  health: {
+    label: 'For you · Health-conscious', summary: 'Air & exposure',
+    tiles: [
+      { label: 'AQI (PM2.5)', value: '148', unit: 'AQI', status: 'Moderate–poor', tone: 'warn', pct: '58%' },
+      { label: 'POLLEN', value: 'High', unit: '', status: 'Grass, Parthenium', tone: 'bad', pct: '78%' },
+      { label: 'UV INDEX', value: '9', unit: 'of 11', status: 'Very high 11am–3pm', tone: 'bad', pct: '82%' },
+      { label: 'HUMIDITY', value: '68', unit: '%', status: 'Muggy, low comfort', tone: 'warn', pct: '68%' }
+    ],
+    panelTitle: 'Sensitive-group advisory', panelMeta: 'Next 12 h',
+    rows: [
+      { label: 'Outdoor exposure', value: 'Limit', note: 'Asthma, COPD, elderly, children', tone: 'bad' },
+      { label: 'Mask recommended', value: 'N95', note: 'Between 8–11 AM and after 7 PM', tone: 'warn' },
+      { label: 'Indoor air', value: 'Purify', note: 'Keep windows shut till 11 AM', tone: 'info' }
+    ],
+    tip: 'Haze plus a UV peak today — shift walks to before 8 AM, and carry your inhaler if pollen-sensitive.'
+  },
+  fitness: {
+    label: 'For you · Fitness', summary: 'Training window',
+    tiles: [
+      { label: 'BEST RUN WINDOW', value: '5:30', unit: '–7:00 AM', status: 'Cool, AQI dipping', tone: 'ok', pct: '85%' },
+      { label: 'WIND', value: '11', unit: 'km/h', status: 'Light, from NW', tone: 'ok', pct: '22%' },
+      { label: 'HEAT INDEX', value: '39', unit: '°C', status: 'Caution after 11 AM', tone: 'warn', pct: '72%' },
+      { label: 'HYDRATION NEED', value: 'High', unit: '', status: '+750 ml per hour', tone: 'warn', pct: '70%' }
+    ],
+    panelTitle: 'Sun & session plan', panelMeta: 'Today',
+    rows: [
+      { label: 'Sunrise', value: '6:12 AM', note: 'First light 5:47 AM', tone: 'info' },
+      { label: 'Sunset', value: '6:44 PM', note: 'Daylight 12 h 32 m', tone: 'info' },
+      { label: 'Evening window', value: '6:30–7:45 PM', note: 'Thunderstorm risk after 8 PM', tone: 'warn' }
+    ],
+    tip: 'Heat builds fast after 10 AM. Keep tempo work in the 5:30–7:00 AM window and cap the evening run at 45 minutes.'
+  },
+  beach: {
+    label: 'For you · Beach & Surf', summary: 'Goa · Calangute',
+    tiles: [
+      { label: 'WAVE HEIGHT', value: '1.4', unit: 'm', status: 'Moderate swell', tone: 'warn', pct: '55%' },
+      { label: 'SEA TEMP', value: '28', unit: '°C', status: 'Comfortable', tone: 'ok', pct: '60%' },
+      { label: 'SAFETY FLAG', value: 'Yellow', unit: '', status: 'Swim near lifeguard', tone: 'warn', pct: '50%' },
+      { label: 'RIP CURRENT', value: 'Low', unit: '', status: 'INCOIS bulletin 9 AM', tone: 'ok', pct: '20%' }
+    ],
+    panelTitle: 'Tide timings', panelMeta: 'INCOIS · Goa coast',
+    rows: [
+      { label: 'High tide', value: '2:20 PM', note: '2.1 m — best surf window', tone: 'info' },
+      { label: 'Low tide', value: '8:05 PM', note: '0.6 m — wide beach, rock pools', tone: 'info' },
+      { label: 'Sea state', value: 'Choppy', note: 'Onshore wind 18 km/h after 3 PM', tone: 'warn' }
+    ],
+    tip: 'Surf the two hours before the 2:20 PM high tide. Yellow flag today — stay within the patrolled stretch.'
+  },
+  travel: {
+    label: 'For you · Travel', summary: '3 saved destinations',
+    tiles: [
+      { label: 'FLIGHT RISK · DEL', value: 'Low', unit: '', status: 'Visibility 3.2 km', tone: 'ok', pct: '25%' },
+      { label: 'RAIN AT ARRIVAL', value: '65', unit: '% LHR', status: 'Showers on landing', tone: 'warn', pct: '65%' },
+      { label: 'TEMP SWING', value: '19', unit: '°C', status: 'Delhi 33° → London 14°', tone: 'info', pct: '60%' },
+      { label: 'PACKING', value: '3', unit: 'items', status: 'Raincoat, layers, umbrella', tone: 'info', pct: '45%' }
+    ],
+    panelTitle: 'Saved destinations', panelMeta: 'Live',
+    rows: [
+      { label: 'London, UK', value: '14° Rain', note: 'Carry a raincoat — showers all week', tone: 'info' },
+      { label: 'Bengaluru, KA', value: '24° Cloudy', note: 'Pleasant, light drizzle at night', tone: 'ok' },
+      { label: 'Leh, Ladakh', value: '9° Clear', note: 'Cold advisory — sub-zero nights', tone: 'warn' }
+    ],
+    tip: 'Your Thu 9:40 PM DEL→LHR flight lands in steady rain. Pack a raincoat on top and keep a warm layer in cabin baggage.'
+  },
+  family: {
+    label: 'For you · Parents & Family', summary: 'School day',
+    tiles: [
+      { label: 'SCHOOL COMMUTE', value: 'Fair', unit: '', status: 'Hazy, 31° at 7:30 AM', tone: 'warn', pct: '55%' },
+      { label: 'RAIN BY 3 PM', value: '70', unit: '%', status: 'Pack-up time showers', tone: 'warn', pct: '70%' },
+      { label: 'PLAYTIME INDEX', value: '4', unit: 'of 10', status: 'Indoor play advised', tone: 'bad', pct: '40%' },
+      { label: 'AQI FOR KIDS', value: '148', unit: 'AQI', status: 'Sensitive category', tone: 'warn', pct: '58%' }
+    ],
+    panelTitle: 'Day plan for the family', panelMeta: 'Warnings included',
+    rows: [
+      { label: 'Morning drop-off', value: '7:30 AM', note: 'Low visibility on ring road — leave 10 min early', tone: 'warn' },
+      { label: 'Afternoon pick-up', value: '3:10 PM', note: 'Thundershower likely — carry umbrellas', tone: 'bad' },
+      { label: 'Evening outdoors', value: 'After 7 PM', note: 'Winds ease, temperature drops to 29°', tone: 'ok' }
+    ],
+    tip: 'Send raincoats today: a 70% chance of showers overlaps school pick-up. Keep outdoor play indoors till the AQI eases tonight.'
+  },
+  agri: {
+    label: 'For you · Agriculture', summary: 'Sonipat block · wheat',
+    tiles: [
+      { label: 'SOIL MOISTURE', value: '22', unit: '% vol', status: 'Below optimum', tone: 'warn', pct: '44%' },
+      { label: 'RAINFALL 48 H', value: '18', unit: 'mm', status: 'Moderate, scattered', tone: 'ok', pct: '52%' },
+      { label: 'FROST RISK', value: 'Nil', unit: '', status: 'Min temp 26°C', tone: 'ok', pct: '8%' },
+      { label: 'WIND GUSTS', value: '48', unit: 'km/h', status: 'Delay spraying', tone: 'bad', pct: '76%' }
+    ],
+    panelTitle: 'Kisan advisory', panelMeta: 'Agromet · IMD Pune',
+    rows: [
+      { label: 'Irrigation', value: 'Hold 2 days', note: '18 mm rain expected Tue–Wed', tone: 'ok' },
+      { label: 'Sowing window', value: '12–16 Sep', note: 'Soil temp and moisture favourable', tone: 'info' },
+      { label: 'Spray schedule', value: 'Postpone', note: 'Gusts above 30 km/h cause drift', tone: 'bad' }
+    ],
+    tip: 'Hold irrigation for 48 hours — forecast rain covers this cycle. Reschedule pesticide spraying to Thursday morning when gusts subside.'
+  },
+  commute: {
+    label: 'For you · Commuters', summary: 'Home → Connaught Place',
+    tiles: [
+      { label: 'VISIBILITY', value: '3.2', unit: 'km', status: 'Haze on flyovers', tone: 'warn', pct: '45%' },
+      { label: 'ROAD SPRAY', value: 'Likely', unit: '', status: 'Waterlogging after 4 PM', tone: 'bad', pct: '72%' },
+      { label: 'DELAY ADDED', value: '+18', unit: 'min', status: 'vs usual 34 min', tone: 'warn', pct: '55%' },
+      { label: 'FOG / STORM', value: 'Storm', unit: '', status: 'Gusty winds 4–7 PM', tone: 'bad', pct: '80%' }
+    ],
+    panelTitle: 'Route conditions', panelMeta: 'Weather + traffic overlay',
+    rows: [
+      { label: 'Ring Road · Moti Bagh', value: 'Slow', note: 'Haze, reduced visibility till 10 AM', tone: 'warn' },
+      { label: 'Minto Bridge underpass', value: 'Avoid 4–7 PM', note: 'Historic waterlogging point', tone: 'bad' },
+      { label: 'Metro Blue Line', value: 'Normal', note: 'Best option during evening squall', tone: 'ok' }
+    ],
+    tip: 'Leave by 8:50 AM to beat the haze slowdown, and take the Metro home — the evening squall hits the Ring Road between 4 and 7 PM.'
+  
+  }
+};
+
+const ORDER = [
+  ['health', 'Health-conscious', '#C2452D'],
+  ['fitness', 'Fitness', '#2E7D5B'],
+  ['beach', 'Beach & Surf', '#2C6EA8'],
+  ['travel', 'Travel', '#7A5AA8'],
+  ['family', 'Parents & Family', '#C9772A'],
+  ['agri', 'Agriculture', '#4C7A2E'],
+  ['commute', 'Commuters', '#1F6E7A']
+];
+
+const DAYS = [
+  { day: 'Mon', hi: '36°', lo: '27°', rain: '20%', icon: '#F2A93B' },
+  { day: 'Tue', hi: '33°', lo: '26°', rain: '70%', icon: '#8FA8BC' },
+  { day: 'Wed', hi: '31°', lo: '25°', rain: '80%', icon: '#5F7C93' },
+  { day: 'Thu', hi: '32°', lo: '26°', rain: '55%', icon: '#8FA8BC' },
+  { day: 'Fri', hi: '34°', lo: '26°', rain: '35%', icon: '#C9CFD4' },
+  { day: 'Sat', hi: '35°', lo: '27°', rain: '25%', icon: '#F2A93B' },
+  { day: 'Sun', hi: '36°', lo: '28°', rain: '15%', icon: '#F2A93B' }
+];
+
+class Component extends DCLogic {
+  state = { active: null };
+
+  get activeKey() {
+    const k = this.state.active || this.props.defaultPersona || 'health';
+    return DATA[k] ? k : 'health';
+  }
+
+  renderVals() {
+    const key = this.activeKey;
+    const d = DATA[key];
+    const sky = this.props.sky || 'Morning';
+    return {
+      isMorning: sky === 'Morning',
+      isAfternoon: sky === 'Afternoon',
+      isDusk: sky === 'Dusk',
+      isFitness: key === 'fitness',
+      isBeach: key === 'beach',
+      isHealth: key === 'health',
+      isTravel: key === 'travel',
+      isFamily: key === 'family',
+      isAgri: key === 'agri',
+      isCommute: key === 'commute',
+      showAlert: this.props.showAlert !== false,
+      personas: ORDER.map(([k, label, dot]) => {
+        const on = k === key;
+        return {
+          key: k, label,
+          dot: on ? '#fff' : dot,
+          bg: on ? '#171A1C' : 'rgba(255,255,255,.9)',
+          fg: on ? '#fff' : 'rgba(23,26,28,.72)',
+          border: on ? '#171A1C' : 'rgba(23,26,28,.10)',
+          select: () => this.setState({ active: k })
+        };
+      }),
+      activeLabel: d.label,
+      activeSummary: d.summary,
+      tiles: d.tiles.map(t => ({ ...t, color: C[t.tone] })),
+      panelTitle: d.panelTitle,
+      panelMeta: d.panelMeta,
+      panelRows: d.rows.map(r => ({ ...r, color: C[r.tone] })),
+      tip: d.tip,
+      days: DAYS.map(x => ({ ...x, rainLabel: x.rain, rain: x.rain }))
+    };
+  }
+}
+</script>
+</body>
+</html>

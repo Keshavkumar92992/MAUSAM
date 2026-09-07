@@ -1,0 +1,743 @@
+{
+  "meta": {
+    "app": "Mausam",
+    "owner": "India Meteorological Department, Ministry of Earth Sciences",
+    "units": "metric",
+    "locale_default": "en-IN",
+    "locales": [
+      "en-IN",
+      "hi-IN"
+    ]
+  },
+  "severity": {
+    "ok": "#2E7D5B",
+    "warn": "#C9772A",
+    "bad": "#C2452D",
+    "info": "#2C6EA8"
+  },
+  "sources": {
+    "openweather": [
+      "current",
+      "forecast_3h",
+      "air_pollution"
+    ],
+    "open_meteo": [
+      "uv_index",
+      "soil_moisture_0_7cm",
+      "visibility",
+      "precipitation_probability",
+      "sunrise",
+      "sunset",
+      "wind_gusts_10m"
+    ],
+    "mocked_for_demo": [
+      "pollen",
+      "wave_height",
+      "sea_temperature",
+      "tide_times",
+      "safety_flag",
+      "traffic_delay"
+    ]
+  },
+  "personas": [
+    {
+      "id": "health",
+      "label": "Health-conscious",
+      "dot": "#C2452D",
+      "accent_bar": [
+        "#C2452D",
+        "#E0872A",
+        "#F2C86A"
+      ],
+      "photo": "health.jpg",
+      "tiles": [
+        {
+          "label": "AQI (PM2.5)",
+          "field": "aqi_pm25",
+          "unit": "AQI",
+          "thresholds": [
+            [
+              0,
+              50,
+              "ok",
+              "Good"
+            ],
+            [
+              51,
+              100,
+              "ok",
+              "Satisfactory"
+            ],
+            [
+              101,
+              200,
+              "warn",
+              "Moderate–poor"
+            ],
+            [
+              201,
+              300,
+              "bad",
+              "Poor"
+            ],
+            [
+              301,
+              999,
+              "bad",
+              "Severe"
+            ]
+          ]
+        },
+        {
+          "label": "Pollen",
+          "field": "pollen_index",
+          "unit": "",
+          "thresholds": [
+            [
+              0,
+              2,
+              "ok",
+              "Low"
+            ],
+            [
+              3,
+              4,
+              "warn",
+              "Moderate"
+            ],
+            [
+              5,
+              9,
+              "bad",
+              "High"
+            ]
+          ]
+        },
+        {
+          "label": "UV index",
+          "field": "uv_index",
+          "unit": "of 11",
+          "thresholds": [
+            [
+              0,
+              2,
+              "ok",
+              "Low"
+            ],
+            [
+              3,
+              5,
+              "warn",
+              "Moderate"
+            ],
+            [
+              6,
+              7,
+              "warn",
+              "High"
+            ],
+            [
+              8,
+              11,
+              "bad",
+              "Very high"
+            ]
+          ]
+        },
+        {
+          "label": "Humidity",
+          "field": "humidity",
+          "unit": "%",
+          "thresholds": [
+            [
+              0,
+              40,
+              "info",
+              "Dry"
+            ],
+            [
+              41,
+              65,
+              "ok",
+              "Comfortable"
+            ],
+            [
+              66,
+              100,
+              "warn",
+              "Muggy, low comfort"
+            ]
+          ]
+        }
+      ],
+      "panel": {
+        "title": "Sensitive-group advisory",
+        "meta": "Next 12 h",
+        "rows": [
+          "outdoor_exposure",
+          "mask_recommendation",
+          "indoor_air"
+        ]
+      },
+      "guidance_rule": "if uv_index>=8 and aqi_pm25>100 -> shift walks before 08:00; mention inhaler when pollen_index>=5"
+    },
+    {
+      "id": "fitness",
+      "label": "Fitness",
+      "dot": "#2E7D5B",
+      "accent_bar": [
+        "#2E7D5B",
+        "#A3D64A",
+        "#F2A93B"
+      ],
+      "photo": "fitness.jpg",
+      "tiles": [
+        {
+          "label": "Best run window",
+          "field": "best_run_window",
+          "unit": "",
+          "rule": "contiguous hours where feels_like<=30 and aqi_pm25<=150 and precip_prob<40, ranked by lowest feels_like",
+          "tone": "ok"
+        },
+        {
+          "label": "Wind",
+          "field": "wind_speed",
+          "unit": "km/h",
+          "thresholds": [
+            [
+              0,
+              15,
+              "ok",
+              "Light"
+            ],
+            [
+              16,
+              30,
+              "warn",
+              "Breezy"
+            ],
+            [
+              31,
+              99,
+              "bad",
+              "Strong"
+            ]
+          ]
+        },
+        {
+          "label": "Heat index",
+          "field": "feels_like_max",
+          "unit": "°C",
+          "thresholds": [
+            [
+              0,
+              32,
+              "ok",
+              "Safe"
+            ],
+            [
+              33,
+              40,
+              "warn",
+              "Caution"
+            ],
+            [
+              41,
+              99,
+              "bad",
+              "Danger"
+            ]
+          ]
+        },
+        {
+          "label": "Hydration need",
+          "field": "hydration_need",
+          "unit": "",
+          "rule": "derived from feels_like_max: <32 Normal, 33-40 High (+750 ml/h), >40 Very high"
+        }
+      ],
+      "panel": {
+        "title": "Sun & session plan",
+        "meta": "Today",
+        "rows": [
+          "sunrise",
+          "sunset",
+          "evening_window"
+        ]
+      },
+      "guidance_rule": "name the morning window; cap evening session when storm_prob>50 after 20:00"
+    },
+    {
+      "id": "beach",
+      "label": "Beach & Surf",
+      "dot": "#2C6EA8",
+      "accent_bar": [
+        "#2C6EA8",
+        "#4FB8C9",
+        "#F2C86A"
+      ],
+      "photo": "beach.jpg",
+      "tiles": [
+        {
+          "label": "Wave height",
+          "field": "wave_height_m",
+          "unit": "m",
+          "thresholds": [
+            [
+              0,
+              0.9,
+              "ok",
+              "Calm"
+            ],
+            [
+              1,
+              1.8,
+              "warn",
+              "Moderate swell"
+            ],
+            [
+              1.9,
+              9,
+              "bad",
+              "High swell"
+            ]
+          ]
+        },
+        {
+          "label": "Sea temp",
+          "field": "sea_temp_c",
+          "unit": "°C",
+          "thresholds": [
+            [
+              0,
+              22,
+              "info",
+              "Cool"
+            ],
+            [
+              23,
+              30,
+              "ok",
+              "Comfortable"
+            ],
+            [
+              31,
+              40,
+              "warn",
+              "Warm"
+            ]
+          ]
+        },
+        {
+          "label": "Safety flag",
+          "field": "safety_flag",
+          "unit": "",
+          "thresholds": [
+            [
+              "green",
+              "green",
+              "ok",
+              "Safe to swim"
+            ],
+            [
+              "yellow",
+              "yellow",
+              "warn",
+              "Swim near lifeguard"
+            ],
+            [
+              "red",
+              "red",
+              "bad",
+              "No swimming"
+            ]
+          ]
+        },
+        {
+          "label": "Rip current",
+          "field": "rip_current",
+          "unit": "",
+          "thresholds": [
+            [
+              "low",
+              "low",
+              "ok",
+              "Low"
+            ],
+            [
+              "moderate",
+              "moderate",
+              "warn",
+              "Moderate"
+            ],
+            [
+              "high",
+              "high",
+              "bad",
+              "High"
+            ]
+          ]
+        }
+      ],
+      "panel": {
+        "title": "Tide timings",
+        "meta": "INCOIS · coast",
+        "rows": [
+          "high_tide",
+          "low_tide",
+          "sea_state"
+        ]
+      },
+      "guidance_rule": "best surf = 2 h before high tide; repeat active flag colour"
+    },
+    {
+      "id": "travel",
+      "label": "Travel",
+      "dot": "#7A5AA8",
+      "accent_bar": [
+        "#7A5AA8",
+        "#2C6EA8",
+        "#F2C86A"
+      ],
+      "photo": "travel.jpg",
+      "tiles": [
+        {
+          "label": "Flight risk · origin",
+          "field": "flight_risk",
+          "unit": "",
+          "rule": "visibility<1km or gusts>45 -> bad; visibility<3km -> warn; else ok"
+        },
+        {
+          "label": "Rain at arrival",
+          "field": "dest_precip_prob",
+          "unit": "%",
+          "thresholds": [
+            [
+              0,
+              30,
+              "ok",
+              "Dry on landing"
+            ],
+            [
+              31,
+              60,
+              "warn",
+              "Showers possible"
+            ],
+            [
+              61,
+              100,
+              "warn",
+              "Showers on landing"
+            ]
+          ]
+        },
+        {
+          "label": "Temp swing",
+          "field": "temp_delta",
+          "unit": "°C",
+          "tone": "info"
+        },
+        {
+          "label": "Packing",
+          "field": "packing_items",
+          "unit": "items",
+          "rule": "raincoat if dest_precip_prob>50; layers if temp_delta>10; sunscreen if dest_uv>=8"
+        }
+      ],
+      "panel": {
+        "title": "Saved destinations",
+        "meta": "Live",
+        "rows": [
+          "saved_city_list (max 5, temp + condition + one-line tip)"
+        ]
+      },
+      "guidance_rule": "reference next saved trip; name the single most useful packing item"
+    },
+    {
+      "id": "family",
+      "label": "Parents & Family",
+      "dot": "#C9772A",
+      "accent_bar": [
+        "#C9772A",
+        "#E0A94A",
+        "#4C7A2E"
+      ],
+      "photo": "family.jpg",
+      "tiles": [
+        {
+          "label": "School commute",
+          "field": "commute_score",
+          "unit": "",
+          "rule": "score from 07:00-08:00 slot: visibility, precip_prob, feels_like"
+        },
+        {
+          "label": "Rain by 3 PM",
+          "field": "precip_prob_1500",
+          "unit": "%",
+          "thresholds": [
+            [
+              0,
+              30,
+              "ok",
+              "Unlikely"
+            ],
+            [
+              31,
+              60,
+              "warn",
+              "Possible"
+            ],
+            [
+              61,
+              100,
+              "warn",
+              "Pack-up time showers"
+            ]
+          ]
+        },
+        {
+          "label": "Playtime index",
+          "field": "playtime_index",
+          "unit": "of 10",
+          "rule": "10 - penalties for aqi, uv, heat, rain"
+        },
+        {
+          "label": "AQI for kids",
+          "field": "aqi_pm25",
+          "unit": "AQI",
+          "thresholds": [
+            [
+              0,
+              100,
+              "ok",
+              "Acceptable"
+            ],
+            [
+              101,
+              200,
+              "warn",
+              "Sensitive category"
+            ],
+            [
+              201,
+              999,
+              "bad",
+              "Avoid outdoors"
+            ]
+          ]
+        }
+      ],
+      "panel": {
+        "title": "Day plan for the family",
+        "meta": "Warnings included",
+        "rows": [
+          "drop_off",
+          "pick_up",
+          "evening_outdoors"
+        ]
+      },
+      "guidance_rule": "always mention raincoat when precip_prob_1500>60 and school pick-up overlaps"
+    },
+    {
+      "id": "agri",
+      "label": "Agriculture",
+      "dot": "#4C7A2E",
+      "accent_bar": [
+        "#4C7A2E",
+        "#A3D64A",
+        "#C9772A"
+      ],
+      "photo": "agri.jpg",
+      "tiles": [
+        {
+          "label": "Soil moisture",
+          "field": "soil_moisture_pct",
+          "unit": "% vol",
+          "thresholds": [
+            [
+              0,
+              25,
+              "warn",
+              "Below optimum"
+            ],
+            [
+              26,
+              40,
+              "ok",
+              "Optimum"
+            ],
+            [
+              41,
+              100,
+              "warn",
+              "Waterlogged"
+            ]
+          ]
+        },
+        {
+          "label": "Rainfall 48 h",
+          "field": "rain_48h_mm",
+          "unit": "mm",
+          "thresholds": [
+            [
+              0,
+              10,
+              "warn",
+              "Light"
+            ],
+            [
+              11,
+              40,
+              "ok",
+              "Moderate"
+            ],
+            [
+              41,
+              999,
+              "bad",
+              "Heavy"
+            ]
+          ]
+        },
+        {
+          "label": "Frost risk",
+          "field": "min_temp_c",
+          "unit": "",
+          "thresholds": [
+            [
+              -9,
+              4,
+              "bad",
+              "Frost likely"
+            ],
+            [
+              5,
+              8,
+              "warn",
+              "Watch"
+            ],
+            [
+              9,
+              99,
+              "ok",
+              "Nil"
+            ]
+          ]
+        },
+        {
+          "label": "Wind gusts",
+          "field": "gusts_kmh",
+          "unit": "km/h",
+          "thresholds": [
+            [
+              0,
+              20,
+              "ok",
+              "Spray safe"
+            ],
+            [
+              21,
+              30,
+              "warn",
+              "Marginal"
+            ],
+            [
+              31,
+              199,
+              "bad",
+              "Delay spraying"
+            ]
+          ]
+        }
+      ],
+      "panel": {
+        "title": "Kisan advisory",
+        "meta": "Agromet · IMD",
+        "rows": [
+          "irrigation",
+          "sowing_window",
+          "spray_schedule"
+        ]
+      },
+      "guidance_rule": "hold irrigation when rain_48h_mm>=15; postpone spraying when gusts>30"
+    },
+    {
+      "id": "commute",
+      "label": "Commuters",
+      "dot": "#1F6E7A",
+      "accent_bar": [
+        "#1F6E7A",
+        "#4FB8C9",
+        "#C9772A"
+      ],
+      "photo": "commute.jpg",
+      "tiles": [
+        {
+          "label": "Visibility",
+          "field": "visibility_km",
+          "unit": "km",
+          "thresholds": [
+            [
+              0,
+              1,
+              "bad",
+              "Dense fog"
+            ],
+            [
+              1.1,
+              4,
+              "warn",
+              "Haze"
+            ],
+            [
+              4.1,
+              99,
+              "ok",
+              "Clear"
+            ]
+          ]
+        },
+        {
+          "label": "Road spray",
+          "field": "road_spray",
+          "unit": "",
+          "rule": "precip_prob>60 -> Likely (bad); 30-60 -> Possible (warn)"
+        },
+        {
+          "label": "Delay added",
+          "field": "delay_min",
+          "unit": "min",
+          "rule": "mock traffic factor x weather penalty"
+        },
+        {
+          "label": "Fog / storm",
+          "field": "hazard",
+          "unit": "",
+          "rule": "gusts>40 -> Storm(bad); visibility<1 -> Fog(bad)"
+        }
+      ],
+      "panel": {
+        "title": "Route conditions",
+        "meta": "Weather + traffic overlay",
+        "rows": [
+          "route_segment_1",
+          "waterlogging_point",
+          "transit_alternative"
+        ]
+      },
+      "guidance_rule": "recommend departure time + transit fallback during squall window"
+    }
+  ],
+  "forecast_strip": {
+    "days": 7,
+    "fields": [
+      "day_short",
+      "condition_dot_color",
+      "precip_prob",
+      "temp_max",
+      "temp_min"
+    ],
+    "note": "OpenWeather free tier gives 5 days / 3-hourly — group by day; use Open-Meteo daily for a true 7-day strip"
+  }
+}

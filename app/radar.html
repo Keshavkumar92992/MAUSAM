@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mausam · Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="./css/styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<style>
+  body{background:#0C1622}
+  .app-shell.dark{background:#0C1622}
+  .radar-header{padding:64px 20px 12px}
+  .radar-header-row{display:flex;align-items:center;justify-content:space-between}
+  .radar-title{display:flex;align-items:baseline;gap:8px}
+  .radar-title .en{font-size:18px;font-weight:700;color:#fff}
+  .radar-title .hi{font-family:'Noto Serif Devanagari',serif;font-size:13px;color:rgba(255,255,255,.6)}
+  .radar-back{font-size:12px;font-weight:600;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:7px 12px}
+  .radar-sub{font-size:12px;color:rgba(255,255,255,.6);margin-top:5px}
+  .layer-chips{display:flex;gap:8px;overflow-x:auto;padding:2px 20px 12px}
+  .layer-chip{flex:none;padding:8px 13px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:rgba(255,255,255,.72)}
+  .layer-chip.on{background:#F5F4EF;color:#0C1622;border-color:#F5F4EF}
+  .map-panel{position:relative;flex:1;min-height:420px;margin:0 14px;border-radius:22px;overflow:hidden;background:radial-gradient(120% 90% at 50% 10%,#16283C,#0A121C 70%);border:1px solid rgba(255,255,255,.10)}
+  .legend{position:absolute;left:12px;bottom:12px;display:flex;flex-direction:column;gap:6px;background:rgba(10,18,28,.66);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:10px 12px}
+  .legend-title{font-size:8.5px;font-weight:700;letter-spacing:.14em;color:rgba(255,255,255,.72)}
+  .legend-ramp{width:96px;height:7px;border-radius:4px}
+  .legend-ticks{display:flex;justify-content:space-between;font-size:9px;font-weight:600;color:rgba(255,255,255,.72)}
+  .range-badge{position:absolute;right:12px;top:12px;background:rgba(10,18,28,.66);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:7px 10px;font-size:10px;font-weight:600;color:rgba(255,255,255,.72)}
+  .controls{padding:14px 20px 6px}
+  .controls-row{display:flex;align-items:center;gap:12px}
+  .play-btn{width:38px;height:38px;flex:none;border-radius:19px;background:#F5F4EF;color:#0C1622;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;cursor:pointer}
+  .slider-wrap{flex:1;min-width:0}
+  .slider-ticks{display:flex;justify-content:space-between;font-size:9.5px;font-weight:600;color:rgba(255,255,255,.6);margin-top:-2px}
+  input[type=range]{-webkit-appearance:none;width:100%;height:26px;background:transparent;margin:0}
+  input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:4px;background:rgba(255,255,255,.22)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;margin-top:-8px;border-radius:50%;background:#F5F4EF;border:3px solid #4FB8C9;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+  input[type=range]::-moz-range-track{height:6px;border-radius:4px;background:rgba(255,255,255,.28)}
+  input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#F5F4EF;border:3px solid #4FB8C9}
+  .nowcast-card{margin-top:12px;display:flex;gap:11px;align-items:flex-start;padding:13px 14px;border-radius:16px;background:rgba(201,119,42,.16);border:1px solid rgba(226,163,80,.38)}
+  .nowcast-badge{width:22px;height:22px;flex:none;border-radius:7px;background:#E2A350;color:#2A1B06;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .nowcast-eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.05em;color:#F0C889}
+  .nowcast-body{font-size:12.5px;line-height:1.45;color:#F5EFE3;margin-top:3px}
+  .radar-content{display:flex;flex-direction:column;min-height:874px}
+</style>
+</head>
+<body>
+<div class="app-shell dark" id="app-root">
+  <div class="radar-content">
+    <div class="radar-header">
+      <div class="radar-header-row">
+        <div class="radar-title"><span class="en">Radar</span><span class="hi">रडार</span></div>
+        <a class="radar-back" href="./index.html">← Home</a>
+      </div>
+      <div class="radar-sub">Doppler composite · <span id="city-label">New Delhi (Palam)</span> · <span id="stamp">now</span></div>
+    </div>
+
+    <div class="layer-chips" id="layer-chips">
+      <div class="layer-chip on" data-layer="rain">Rainfall</div>
+      <div class="layer-chip" data-layer="cloud">Cloud cover</div>
+      <div class="layer-chip" data-layer="lightning">Lightning</div>
+      <div class="layer-chip" data-layer="wind">Wind</div>
+    </div>
+
+    <div class="map-panel">
+      <svg id="map" style="position:absolute;inset:0;width:100%;height:100%"></svg>
+      <div class="legend">
+        <div class="legend-title" id="legTitle">RAINFALL mm/h</div>
+        <div class="legend-ramp" id="legRamp" style="background:linear-gradient(90deg,#4FB8C9,#3E8FD8,#7A5AA8,#C2452D)"></div>
+        <div class="legend-ticks" id="legTicks"><span>2.5</span><span>15</span><span>65+</span></div>
+      </div>
+      <div class="range-badge">Range 250 km</div>
+    </div>
+
+    <div class="controls">
+      <div class="controls-row">
+        <div class="play-btn" id="play">▶</div>
+        <div class="slider-wrap">
+          <input id="time" type="range" min="-30" max="120" step="5" value="0">
+          <div class="slider-ticks"><span>−30 min</span><span>NOW</span><span>+2 h nowcast</span></div>
+        </div>
+      </div>
+      <div class="nowcast-card">
+        <div class="nowcast-badge">!</div>
+        <div>
+          <div class="nowcast-eyebrow">NOWCAST · NEXT 2 HOURS</div>
+          <div class="nowcast-body" id="cellText">Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-nav">
+      <a class="nav-item home" href="./index.html"><div class="glyph"></div><span class="label">Home</span></a>
+      <div class="nav-item radar active"><div class="glyph"></div><span class="label">Radar</span></div>
+      <div class="nav-item"><div class="glyph"></div><span class="label">Alerts</span></div>
+      <div class="nav-item"><div class="glyph"></div><span class="label">Saved</span></div>
+    </div>
+  </div>
+</div>
+<script type="module" src="./js/radarApp.js"></script>
+</body>
+</html>

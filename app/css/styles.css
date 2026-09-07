@@ -77,6 +77,11 @@ input{font-family:inherit}
 }
 .dark .home-indicator{background:rgba(255,255,255,.5)}
 @media (max-width:440px){
+  /* On a real phone the OS already shows a real status bar (real clock,
+     real signal). This simulated one is desktop-mockup chrome only —
+     showing it on an actual device just draws a fake clock/IMD pill on
+     top of the real one. */
+  .phone-status-bar{display:none}
   .dynamic-island{display:none}
   .home-indicator{display:none}
 }

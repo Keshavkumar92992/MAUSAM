@@ -11,26 +11,29 @@
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
 <style>
   body{background:#0C1622}
-  .app-shell.dark{background:#0C1622}
-  .radar-header{padding:64px 20px 12px}
+  .app-shell.dark{background:#0C1622;box-shadow:0 35px 80px -10px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.12), 0 0 0 8px #131E2C}
+  .radar-header{padding:54px 20px 12px}
   .radar-header-row{display:flex;align-items:center;justify-content:space-between}
   .radar-title{display:flex;align-items:baseline;gap:8px}
-  .radar-title .en{font-size:18px;font-weight:700;color:#fff}
-  .radar-title .hi{font-family:'Noto Serif Devanagari',serif;font-size:13px;color:rgba(255,255,255,.6)}
-  .radar-back{font-size:12px;font-weight:600;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:7px 12px}
-  .radar-sub{font-size:12px;color:rgba(255,255,255,.6);margin-top:5px}
+  .radar-title .en{font-size:20px;font-weight:700;color:#fff}
+  .radar-title .hi{font-family:'Noto Serif Devanagari',serif;font-size:14px;color:rgba(255,255,255,.6)}
+  .radar-back{font-size:12px;font-weight:600;color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:6px 12px;transition:all .15s}
+  .radar-back:hover{background:rgba(255,255,255,.1);color:#fff}
+  .radar-sub{font-size:11.5px;color:rgba(255,255,255,.6);margin-top:5px}
   .layer-chips{display:flex;gap:8px;overflow-x:auto;padding:2px 20px 12px}
-  .layer-chip{flex:none;padding:8px 13px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:rgba(255,255,255,.72)}
+  .layer-chip{flex:none;padding:8px 14px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:rgba(255,255,255,.72);transition:all .18s}
+  .layer-chip:hover{background:rgba(255,255,255,.14);color:#fff}
   .layer-chip.on{background:#F5F4EF;color:#0C1622;border-color:#F5F4EF}
-  .map-panel{position:relative;flex:1;min-height:420px;margin:0 14px;border-radius:22px;overflow:hidden;background:radial-gradient(120% 90% at 50% 10%,#16283C,#0A121C 70%);border:1px solid rgba(255,255,255,.10)}
-  .legend{position:absolute;left:12px;bottom:12px;display:flex;flex-direction:column;gap:6px;background:rgba(10,18,28,.66);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:10px 12px}
+  .map-panel{position:relative;flex:1;min-height:420px;margin:0 14px;border-radius:24px;overflow:hidden;background:radial-gradient(120% 90% at 50% 10%,#16283C,#0A121C 70%);border:1px solid rgba(255,255,255,.10)}
+  .legend{position:absolute;left:12px;bottom:12px;display:flex;flex-direction:column;gap:6px;background:rgba(10,18,28,.7);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:10px 12px}
   .legend-title{font-size:8.5px;font-weight:700;letter-spacing:.14em;color:rgba(255,255,255,.72)}
   .legend-ramp{width:96px;height:7px;border-radius:4px}
   .legend-ticks{display:flex;justify-content:space-between;font-size:9px;font-weight:600;color:rgba(255,255,255,.72)}
-  .range-badge{position:absolute;right:12px;top:12px;background:rgba(10,18,28,.66);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:7px 10px;font-size:10px;font-weight:600;color:rgba(255,255,255,.72)}
+  .range-badge{position:absolute;right:12px;top:12px;background:rgba(10,18,28,.7);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:7px 11px;font-size:10px;font-weight:600;color:rgba(255,255,255,.72)}
   .controls{padding:14px 20px 6px}
   .controls-row{display:flex;align-items:center;gap:12px}
-  .play-btn{width:38px;height:38px;flex:none;border-radius:19px;background:#F5F4EF;color:#0C1622;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;cursor:pointer}
+  .play-btn{width:38px;height:38px;flex:none;border-radius:19px;background:#F5F4EF;color:#0C1622;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;cursor:pointer;transition:transform .12s}
+  .play-btn:active{transform:scale(.92)}
   .slider-wrap{flex:1;min-width:0}
   .slider-ticks{display:flex;justify-content:space-between;font-size:9.5px;font-weight:600;color:rgba(255,255,255,.6);margin-top:-2px}
   input[type=range]{-webkit-appearance:none;width:100%;height:26px;background:transparent;margin:0}
@@ -43,10 +46,20 @@
   .nowcast-eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.05em;color:#F0C889}
   .nowcast-body{font-size:12.5px;line-height:1.45;color:#F5EFE3;margin-top:3px}
   .radar-content{display:flex;flex-direction:column;min-height:874px}
+
+  @keyframes pulseRing {
+    0% { r: 5px; opacity: 0.85; }
+    50% { r: 14px; opacity: 0; }
+    100% { r: 5px; opacity: 0; }
+  }
+  .pulse-ring {
+    animation: pulseRing 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  }
 </style>
 </head>
 <body>
 <div class="app-shell dark" id="app-root">
+  <div id="status-bar-wrap"></div>
   <div class="radar-content">
     <div class="radar-header">
       <div class="radar-header-row">
@@ -75,9 +88,9 @@
 
     <div class="controls">
       <div class="controls-row">
-        <div class="play-btn" id="play">▶</div>
+        <div class="play-btn" id="play" title="Play animation">▶</div>
         <div class="slider-wrap">
-          <input id="time" type="range" min="-30" max="120" step="5" value="0">
+          <input id="time" type="range" min="-30" max="120" step="5" value="0" aria-label="Radar timeline slider">
           <div class="slider-ticks"><span>−30 min</span><span>NOW</span><span>+2 h nowcast</span></div>
         </div>
       </div>
@@ -85,18 +98,14 @@
         <div class="nowcast-badge">!</div>
         <div>
           <div class="nowcast-eyebrow">NOWCAST · NEXT 2 HOURS</div>
-          <div class="nowcast-body" id="cellText">Loading…</div>
+          <div class="nowcast-body" id="cellText">Loading Doppler cells…</div>
         </div>
       </div>
     </div>
 
-    <div class="bottom-nav">
-      <a class="nav-item home" href="./index.html"><div class="glyph"></div><span class="label">Home</span></a>
-      <div class="nav-item radar active"><div class="glyph"></div><span class="label">Radar</span></div>
-      <a class="nav-item alerts" href="./alerts.html"><div class="glyph"></div><span class="label">Alerts</span></a>
-      <a class="nav-item saved" href="./saved.html"><div class="glyph"></div><span class="label">Saved</span></a>
-    </div>
+    <div id="nav-wrap"></div>
   </div>
+  <div class="home-indicator"></div>
 </div>
 <script type="module" src="./js/radarApp.js"></script>
 </body>

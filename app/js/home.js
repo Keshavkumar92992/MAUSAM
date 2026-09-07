@@ -3,6 +3,7 @@ import { buildMetrics } from './metrics.js';
 import { buildPersonaView } from './personas.js';
 import { buildTravelData, addSavedCity } from './travel.js';
 import { loadState, saveState, fmtTime } from './utils.js';
+import { ICONS, renderBottomNav, renderStatusBar } from './icons.js';
 
 const PHOTO_CROP = {
   health: { right: '-190px', top: '-300px', height: '790px' },
@@ -19,7 +20,18 @@ const SCRIM_TINT = {
   travel: '238,243,250', family: '250,245,236', agri: '242,247,238', commute: '238,246,247',
 };
 
-const DEFAULT_CITY = { name: 'New Delhi', admin1: 'Delhi', country: 'India', lat: 28.5822, lon: 77.2 };
+const POPULAR_CITIES = [
+  { name: 'New Delhi', admin1: 'Delhi', country: 'India', lat: 28.6139, lon: 77.2090 },
+  { name: 'Mumbai', admin1: 'Maharashtra', country: 'India', lat: 19.0760, lon: 72.8777 },
+  { name: 'Bengaluru', admin1: 'Karnataka', country: 'India', lat: 12.9716, lon: 77.5946 },
+  { name: 'Kolkata', admin1: 'West Bengal', country: 'India', lat: 22.5726, lon: 88.3639 },
+  { name: 'Chennai', admin1: 'Tamil Nadu', country: 'India', lat: 13.0827, lon: 80.2707 },
+  { name: 'Goa (Panaji)', admin1: 'Goa', country: 'India', lat: 15.4909, lon: 73.8278 },
+  { name: 'Shimla', admin1: 'Himachal Pradesh', country: 'India', lat: 31.1048, lon: 77.1734 },
+  { name: 'Leh', admin1: 'Ladakh', country: 'India', lat: 34.1526, lon: 77.5771 },
+];
+
+const DEFAULT_CITY = POPULAR_CITIES[0];
 
 const root = document.getElementById('app-root');
 let personaConfig = null;
@@ -95,15 +107,47 @@ async function onSearchInput(value) {
       state.searchResults = [];
     }
     render();
-  }, 300);
+  }, 250);
 }
 
 async function selectCity(c) {
-  state.city = { name: c.name, admin1: c.admin1, country: c.country, lat: c.lat, lon: c.lon };
+  state.city = { name: c.name, admin1: c.admin1 || '', country: c.country || 'India', lat: c.lat, lon: c.lon };
   state.searchOpen = false;
   saveState({ city: state.city });
   render();
   await loadWeather();
+}
+
+function useCurrentLocation() {
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser.');
+    return;
+  }
+  const geoBtn = document.getElementById('btn-geo');
+  if (geoBtn) geoBtn.textContent = 'Locating GPS position…';
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const lat = Number(pos.coords.latitude.toFixed(4));
+      const lon = Number(pos.coords.longitude.toFixed(4));
+      let name = 'My Location';
+      try {
+        const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+        if (res.ok) {
+          const data = await res.json();
+          name = data.city || data.locality || data.principalSubdivision || 'My Location';
+        }
+      } catch {
+        // keep fallback
+      }
+      selectCity({ name, admin1: '', country: 'India', lat, lon });
+    },
+    (err) => {
+      alert('Unable to retrieve location: ' + err.message);
+      if (geoBtn) geoBtn.textContent = 'Use My Current Location';
+    },
+    { timeout: 8000 }
+  );
 }
 
 function saveDestination() {
@@ -140,15 +184,18 @@ function render() {
   const personaDef = personaConfig.personas.find((p) => p.id === persona) || personaConfig.personas[0];
   const crop = PHOTO_CROP[persona];
   const tint = SCRIM_TINT[persona];
+  const alert = state.metrics ? alertInfo(state.metrics) : null;
 
   root.innerHTML = `
+    ${renderStatusBar(false)}
+
     <div class="sky-gradient" style="background:${skyGradientClass()}"></div>
     <div class="texture-glow"></div>
     <div class="texture-grain"></div>
 
     <div class="hero-photo-band">
-      <div style="position:absolute;left:0;right:${crop.right};top:${crop.top};height:${crop.height};width:100%">
-        <img src="./assets/${persona}.png" style="width:100%;height:100%;object-fit:cover" alt="">
+      <div class="hero-photo-wrapper" style="left:0;right:${crop.right};top:${crop.top};height:${crop.height}">
+        <img src="./assets/${persona}.png" alt="${personaDef.label}">
       </div>
     </div>
     <div class="hero-scrim" style="background:
@@ -157,37 +204,37 @@ function render() {
     <div class="hero-accent-bar" style="background:linear-gradient(90deg,${personaDef.accent_bar[0]},${personaDef.accent_bar[1]} 55%,${personaDef.accent_bar[2]})"></div>
 
     <div class="content">
-      ${renderHeader()}
+      ${renderHeader(alert)}
       ${renderPersonaChips(personaDef)}
       ${state.status === 'ready' ? renderBody(personaDef) : state.status === 'error' ? renderError() : renderSkeleton()}
       ${renderFooter()}
-      ${renderNav()}
+      ${renderBottomNav('home', alert ? 1 : 0, false)}
     </div>
+    <div class="home-indicator"></div>
     ${state.searchOpen ? renderSearch() : ''}
   `;
 
   wireEvents(personaDef);
 }
 
-function renderHeader() {
+function renderHeader(alert) {
   const m = state.metrics;
-  const alert = m ? alertInfo(m) : null;
   const iconClass = m ? (m.conditionIcon === 'rain' ? 'rain' : m.conditionIcon === 'cloud' ? 'cloud' : '') : '';
   return `
     <div class="header-block">
       <div class="wordmark-row">
         <div class="wordmark"><span class="en">Mausam</span><span class="hi">मौसम</span></div>
         <div class="header-icons">
-          <button class="icon-btn" id="btn-search">⌕</button>
-          <button class="icon-btn" id="btn-menu">☰</button>
+          <button class="icon-btn" id="btn-search" title="Search city" aria-label="Search city">${ICONS.search()}</button>
+          <button class="icon-btn" id="btn-menu" title="Menu" aria-label="Menu">${ICONS.menu()}</button>
         </div>
       </div>
-      <div class="location-row" id="location-row">
+      <div class="location-row" id="location-row" title="Tap to switch city">
         <span class="location-dot"></span>
         <span class="location-city">${state.city.name}${state.city.admin1 ? ', ' + state.city.admin1 : ''}</span>
         <span class="location-caret">▾</span>
       </div>
-      <div class="location-sub">${m ? `Live position · updated ${fmtTime(new Date())} IST` : 'Locating…'}</div>
+      <div class="location-sub">${m ? `Safdarjung / local station · updated ${fmtTime(new Date())} IST` : 'Locating station…'}</div>
 
       <div class="current-row">
         <div class="temp-block">
@@ -291,7 +338,7 @@ function renderBody(personaDef) {
       </div>
 
       ${state.activePersona === 'travel' ? `
-        <button id="btn-save-dest" style="margin-top:10px;width:100%;padding:10px;border-radius:12px;background:rgba(255,255,255,.9);border:1px solid rgba(23,26,28,.1);font-size:12px;font-weight:600;color:var(--ink)">+ Save "${state.city.name}" as a destination</button>
+        <button id="btn-save-dest" style="margin-top:10px;width:100%;padding:11px;border-radius:14px;background:rgba(255,255,255,.9);border:1px solid rgba(23,26,28,.1);font-size:12.5px;font-weight:600;color:var(--ink)">+ Save "${state.city.name}" to travel list</button>
       ` : ''}
 
       <div class="guidance-card">
@@ -345,34 +392,34 @@ function renderFooter() {
   return `<div class="footer-note">India Meteorological Department<br>Ministry of Earth Sciences, Government of India</div>`;
 }
 
-function renderNav() {
-  return `
-    <div class="bottom-nav">
-      <div class="nav-item home active"><div class="glyph"></div><span class="label">Home</span></div>
-      <a class="nav-item radar" href="./radar.html"><div class="glyph"></div><span class="label">Radar</span></a>
-      <a class="nav-item alerts" href="./alerts.html"><div class="glyph"></div><span class="label">Alerts</span></a>
-      <a class="nav-item saved" href="./saved.html"><div class="glyph"></div><span class="label">Saved</span></a>
-    </div>
-  `;
-}
-
 function renderSearch() {
   return `
     <div class="search-overlay" id="search-overlay">
       <div class="search-panel">
         <div class="search-input-row">
-          <input id="search-input" class="search-input" placeholder="Search city…" value="${state.searchQuery}">
+          <input id="search-input" class="search-input" placeholder="Search city or district…" value="${state.searchQuery}" autocomplete="off">
           <button class="search-close" id="search-close">Cancel</button>
         </div>
+
+        <button class="geo-btn" id="btn-geo">
+          ${ICONS.location('', 'currentColor')} Use My Current Location
+        </button>
+
+        <div class="search-quick-title">POPULAR MET STATIONS</div>
+        <div class="search-chips">
+          ${POPULAR_CITIES.map((c, i) => `
+            <div class="search-chip" data-quick="${i}">${c.name}</div>
+          `).join('')}
+        </div>
+
         <div class="search-results">
-          ${state.searchQuery.length < 2 ? '<div class="search-empty">Type at least 2 characters</div>' :
-            state.searchResults.length === 0 ? '<div class="search-empty">No matches</div>' :
-            state.searchResults.map((r, i) => `
-              <div class="search-result" data-idx="${i}">
-                <div class="name">${r.name}</div>
-                <div class="region">${[r.admin1, r.country].filter(Boolean).join(', ')}</div>
-              </div>
-            `).join('')}
+          ${state.searchQuery.length >= 2 && state.searchResults.length === 0 ? '<div class="search-empty">No matching stations found</div>' : ''}
+          ${state.searchResults.map((r, i) => `
+            <div class="search-result" data-idx="${i}">
+              <div class="name">${r.name}</div>
+              <div class="region">${[r.admin1, r.country].filter(Boolean).join(', ')}</div>
+            </div>
+          `).join('')}
         </div>
       </div>
     </div>
@@ -385,6 +432,10 @@ function wireEvents() {
   document.getElementById('search-close')?.addEventListener('click', closeSearch);
   document.getElementById('search-overlay')?.addEventListener('click', (e) => {
     if (e.target.id === 'search-overlay') closeSearch();
+  });
+  document.getElementById('btn-geo')?.addEventListener('click', useCurrentLocation);
+  document.querySelectorAll('.search-chip').forEach((el) => {
+    el.addEventListener('click', () => selectCity(POPULAR_CITIES[+el.dataset.quick]));
   });
   document.getElementById('search-input')?.addEventListener('input', (e) => onSearchInput(e.target.value));
   document.querySelectorAll('.search-result').forEach((el) => {

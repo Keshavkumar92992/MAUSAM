@@ -1,4 +1,11 @@
 import { loadState } from './utils.js';
+import { renderBottomNav, renderStatusBar } from './icons.js';
+
+const statusWrap = document.getElementById('status-bar-wrap');
+if (statusWrap) statusWrap.innerHTML = renderStatusBar(true);
+
+const navWrap = document.getElementById('nav-wrap');
+if (navWrap) navWrap.innerHTML = renderBottomNav('radar', 0, true);
 
 const CELLS = [
   { lon: 76.4, lat: 27.6, r: 62, i: 3, vx: 0.0055, vy: 0.0032, grow: 0.004 },
@@ -21,7 +28,6 @@ const RAMP = ['#4FB8C9', '#3E8FD8', '#7A5AA8', '#C2452D', '#8E2418'];
 const saved = loadState();
 const cityName = saved.city?.name || 'New Delhi';
 document.getElementById('city-label').textContent = cityName === 'New Delhi' ? 'New Delhi (Palam)' : cityName;
-// Highlight the user's own city if it's near one of the fixed radar markers, otherwise keep Delhi as HQ.
 const hqCity = CITIES.find((c) => c.n === cityName);
 if (hqCity) {
   CITIES.forEach((c) => (c.hq = c === hqCity));
@@ -91,6 +97,11 @@ Promise.all([
   const cg = svg.append('g');
   CITIES.forEach((c) => {
     const p = projection([c.lon, c.lat]);
+    if (c.hq) {
+      cg.append('circle').attr('cx', p[0]).attr('cy', p[1]).attr('r', 5)
+        .attr('fill', 'none').attr('stroke', '#C2452D').attr('stroke-width', 1.8)
+        .attr('class', 'pulse-ring');
+    }
     cg.append('circle').attr('cx', p[0]).attr('cy', p[1]).attr('r', c.hq ? 4 : 2.4)
       .attr('fill', c.hq ? '#F5F4EF' : 'rgba(245,244,239,.72)')
       .attr('stroke', c.hq ? '#C2452D' : 'none').attr('stroke-width', c.hq ? 2 : 0);

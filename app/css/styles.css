@@ -283,17 +283,6 @@ input{font-family:inherit}
 .geo-btn:hover{background:#dbe8de}
 .geo-btn:disabled{background:rgba(23,26,28,.05);color:var(--ink-tertiary);border-color:rgba(23,26,28,.1);cursor:not-allowed}
 .geo-btn:disabled:hover{background:rgba(23,26,28,.05)}
-
-.menu-panel{gap:2px}
-.menu-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-.menu-row{
-  display:flex;align-items:center;justify-content:space-between;padding:13px 4px;
-  border-top:1px solid rgba(23,26,28,.07);font-size:13.5px;font-weight:600;
-  color:var(--ink);text-decoration:none;cursor:pointer;
-}
-.menu-row:first-of-type{border-top:none}
-.menu-arrow{color:var(--ink-tertiary);font-size:14px}
-.menu-about{font-size:11.5px;line-height:1.5;color:var(--ink-tertiary);margin-top:10px;padding-top:10px;border-top:1px solid rgba(23,26,28,.07)}
 .search-results{margin-top:8px;overflow-y:auto}
 .search-result{padding:10px 8px;border-top:1px solid rgba(23,26,28,.07);cursor:pointer;font-size:13px;border-radius:8px}
 .search-result:hover{background:rgba(23,26,28,.04)}

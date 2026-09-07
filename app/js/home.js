@@ -45,7 +45,6 @@ const state = {
   searchOpen: false,
   searchResults: [],
   searchQuery: '',
-  menuOpen: false,
 };
 
 async function init() {
@@ -211,7 +210,6 @@ function render() {
     </div>
     <div class="home-indicator"></div>
     ${state.searchOpen ? renderSearch() : ''}
-    ${state.menuOpen ? renderMenu() : ''}
   `;
 
   wireEvents(personaDef);
@@ -226,7 +224,6 @@ function renderHeader(alert) {
         <div class="wordmark"><span class="en">Mausam</span><span class="hi">मौसम</span></div>
         <div class="header-icons">
           <button class="icon-btn" id="btn-search" title="Search city" aria-label="Search city">${ICONS.search()}</button>
-          <button class="icon-btn" id="btn-menu" title="Menu" aria-label="Menu">${ICONS.menu()}</button>
         </div>
       </div>
       <div class="location-row" id="location-row" title="Tap to switch city">
@@ -426,41 +423,6 @@ function renderSearch() {
   `;
 }
 
-function renderMenu() {
-  return `
-    <div class="search-overlay" id="menu-overlay">
-      <div class="search-panel menu-panel">
-        <div class="menu-header">
-          <div class="wordmark"><span class="en">Mausam</span><span class="hi">मौसम</span></div>
-          <button class="search-close" id="menu-close">Close</button>
-        </div>
-        <div class="menu-row" data-menu-nav="./alerts.html">
-          <span>Alerts</span><span class="menu-arrow">›</span>
-        </div>
-        <div class="menu-row" data-menu-nav="./saved.html">
-          <span>Saved cities</span><span class="menu-arrow">›</span>
-        </div>
-        <div class="menu-row" id="menu-refresh">
-          <span>Refresh weather data</span><span class="menu-arrow">↻</span>
-        </div>
-        <a class="menu-row" href="https://mausam.imd.gov.in" target="_blank" rel="noopener">
-          <span>IMD official site</span><span class="menu-arrow">↗</span>
-        </a>
-        <div class="menu-about">
-          Persona-driven weather for India — live data from Open-Meteo. A few
-          fields (pollen, tides, traffic) are sample data where no free feed
-          exists; see the project README for details.
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function toggleMenu() {
-  state.menuOpen = !state.menuOpen;
-  render();
-}
-
 function wireEvents() {
   document.getElementById('btn-search')?.addEventListener('click', openSearch);
   document.getElementById('location-row')?.addEventListener('click', openSearch);
@@ -469,18 +431,6 @@ function wireEvents() {
     if (e.target.id === 'search-overlay') closeSearch();
   });
   document.getElementById('btn-geo')?.addEventListener('click', useCurrentLocation);
-  document.getElementById('btn-menu')?.addEventListener('click', toggleMenu);
-  document.getElementById('menu-close')?.addEventListener('click', toggleMenu);
-  document.getElementById('menu-overlay')?.addEventListener('click', (e) => {
-    if (e.target.id === 'menu-overlay') toggleMenu();
-  });
-  document.getElementById('menu-refresh')?.addEventListener('click', () => {
-    state.menuOpen = false;
-    loadWeather();
-  });
-  document.querySelectorAll('[data-menu-nav]').forEach((el) => {
-    el.addEventListener('click', () => { window.location.href = el.dataset.menuNav; });
-  });
   document.querySelectorAll('.search-chip').forEach((el) => {
     el.addEventListener('click', () => selectCity(POPULAR_CITIES[+el.dataset.quick]));
   });

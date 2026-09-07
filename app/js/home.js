@@ -255,9 +255,11 @@ function render() {
     <div class="content">
       ${renderHeader(alert)}
       ${renderPersonaChips(personaDef)}
-      ${state.status === 'ready' ? renderBody(personaDef) : state.status === 'error' ? renderError() : renderSkeleton()}
-      ${renderFooter()}
-      ${renderBottomNav('home', alert ? 1 : 0, false)}
+      <div class="content-sheet">
+        ${state.status === 'ready' ? renderBody(personaDef) : state.status === 'error' ? renderError() : renderSkeleton()}
+        ${renderFooter()}
+        ${renderBottomNav('home', alert ? 1 : 0, false)}
+      </div>
     </div>
     <div class="home-indicator"></div>
     ${state.searchOpen ? renderSearch() : ''}

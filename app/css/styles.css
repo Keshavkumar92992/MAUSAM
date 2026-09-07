@@ -100,14 +100,30 @@ input{font-family:inherit}
   background-image:repeating-linear-gradient(135deg,rgba(23,26,28,.035) 0 1px,transparent 1px 7px);
 }
 
-/* Photo Crop Band: Subject strictly on right half, left protected for text column */
-.hero-photo-band{position:absolute;top:0;left:0;right:0;height:470px;overflow:hidden;z-index:0}
+/* Photo Crop Band: Subject strictly on right half, left protected for text column.
+   Fixed to the viewport (not app-shell) so it stays put as the page scrolls —
+   the header and persona chips scroll normally over it, and content-sheet
+   below (opaque) covers it completely once scrolled far enough. */
+.hero-photo-band{
+  position:fixed;top:0;left:50%;transform:translateX(-50%);
+  width:402px;max-width:100vw;height:470px;overflow:hidden;z-index:0;
+}
 .hero-photo-wrapper{position:absolute;transition:all .35s ease}
 .hero-photo-wrapper img{width:100%;height:100%;object-fit:cover;display:block}
-.hero-scrim{position:absolute;top:0;left:0;right:0;height:470px;pointer-events:none;z-index:1;transition:background .35s ease}
-.hero-accent-bar{position:absolute;top:0;left:0;right:0;height:4px;z-index:2}
+.hero-scrim{
+  position:fixed;top:0;left:50%;transform:translateX(-50%);
+  width:402px;max-width:100vw;height:470px;pointer-events:none;z-index:1;transition:background .35s ease;
+}
+.hero-accent-bar{
+  position:fixed;top:0;left:50%;transform:translateX(-50%);
+  width:402px;max-width:100vw;height:4px;z-index:2;
+}
+@media (max-width:440px){
+  .hero-photo-band, .hero-scrim, .hero-accent-bar{left:0;transform:none;width:100%}
+}
 
-.content{position:relative;z-index:2;padding-bottom:96px}
+.content{position:relative;z-index:2}
+.content-sheet{position:relative;background:var(--page);padding-bottom:96px}
 
 .header-block{padding:54px 20px 24px}
 @media (max-width:440px){

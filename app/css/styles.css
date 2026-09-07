@@ -127,7 +127,11 @@ input{font-family:inherit}
 }
 
 .content{position:relative;z-index:2}
-.content-sheet{position:relative;background:var(--page);padding-bottom:96px}
+/* No background here on purpose — the fixed photo behind stays visible
+   through the gaps around cards for the whole page, not just the first
+   screen. Individual cards (tiles, panels, footer) stay opaque on their
+   own, so text is never sitting directly on the photo. */
+.content-sheet{position:relative;padding-bottom:96px}
 
 .header-block{padding:54px 20px 24px}
 @media (max-width:440px){
@@ -245,7 +249,12 @@ input{font-family:inherit}
 .outlook-col .hi{font-size:12px;font-weight:700}
 .outlook-col .lo{font-size:11px;color:var(--ink-secondary);margin-top:-4px}
 
-.footer-note{font-size:10.5px;line-height:1.6;color:var(--ink-secondary);text-align:center;padding:16px 10px 8px}
+.footer-note{
+  font-size:10.5px;line-height:1.6;color:var(--ink-secondary);text-align:center;
+  margin:16px 20px 8px;padding:10px 14px;border-radius:14px;
+  background:rgba(245,244,239,.82);backdrop-filter:blur(6px);
+  border:1px solid rgba(23,26,28,.06);
+}
 
 /* Unified SVG Bottom Navigation — fixed to the viewport so it's always
    visible, not just once you scroll far enough for a sticky element to

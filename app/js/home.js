@@ -5,14 +5,15 @@ import { buildTravelData, addSavedCity } from './travel.js';
 import { loadState, saveState, fmtTime } from './utils.js';
 import { ICONS, renderBottomNav, renderStatusBar } from './icons.js';
 
+const DEFAULT_BAND_HEIGHT = 470;
 const PHOTO_CROP = {
-  health: { right: '-190px', top: '-300px', height: '790px' },
+  health: { right: '-190px', top: '-300px', height: '970px', bandHeight: 640 },
   travel: { right: '-140px', top: '-150px', height: '700px' },
   family: { right: '-90px', top: '-90px', height: '560px' },
   agri: { right: '-160px', top: '-280px', height: '760px' },
   commute: { right: '-120px', top: '-190px', height: '700px' },
   beach: { right: '0px', top: '-330px', height: '800px' },
-  fitness: { right: '0px', top: '-30px', height: '710px' },
+  fitness: { right: '0px', top: '-30px', height: '710px', bandHeight: 640 },
 };
 
 const SCRIM_TINT = {
@@ -241,12 +242,12 @@ function render() {
     <div class="texture-glow"></div>
     <div class="texture-grain"></div>
 
-    <div class="hero-photo-band">
+    <div class="hero-photo-band" style="height:${crop.bandHeight || DEFAULT_BAND_HEIGHT}px">
       <div class="hero-photo-wrapper" style="left:0;right:${crop.right};top:${crop.top};height:${crop.height}">
         <img src="./assets/${persona}.png" alt="${personaDef.label}">
       </div>
     </div>
-    <div class="hero-scrim" style="background:
+    <div class="hero-scrim" style="height:${crop.bandHeight || DEFAULT_BAND_HEIGHT}px;background:
       linear-gradient(180deg,rgba(245,244,239,.22) 0%,rgba(245,244,239,.14) 50%,rgba(245,244,239,.55) 84%,rgba(245,244,239,.97) 100%),
       linear-gradient(96deg,rgba(${tint},.88) 0%,rgba(${tint},.62) 36%,rgba(${tint},.06) 74%,rgba(${tint},0) 100%)"></div>
     <div class="hero-accent-bar" style="background:linear-gradient(90deg,${personaDef.accent_bar[0]},${personaDef.accent_bar[1]} 55%,${personaDef.accent_bar[2]})"></div>

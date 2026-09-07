@@ -106,13 +106,17 @@ input{font-family:inherit}
    below (opaque) covers it completely once scrolled far enough. */
 .hero-photo-band{
   position:fixed;top:0;left:50%;transform:translateX(-50%);
-  width:402px;max-width:100vw;height:470px;overflow:hidden;z-index:0;
+  width:402px;max-width:100vw;overflow:hidden;z-index:0;
+  height:100vh;height:100dvh; /* dvh tracks the real visible viewport (iOS Safari's
+    collapsing address bar included) — a fixed px guess was consistently shorter
+    than people's actual screens, leaving a gap before the content sheet. */
 }
 .hero-photo-wrapper{position:absolute;transition:all .35s ease}
 .hero-photo-wrapper img{width:100%;height:100%;object-fit:cover;display:block}
 .hero-scrim{
   position:fixed;top:0;left:50%;transform:translateX(-50%);
-  width:402px;max-width:100vw;height:470px;pointer-events:none;z-index:1;transition:background .35s ease;
+  width:402px;max-width:100vw;pointer-events:none;z-index:1;transition:background .35s ease;
+  height:100vh;height:100dvh;
 }
 .hero-accent-bar{
   position:fixed;top:0;left:50%;transform:translateX(-50%);

@@ -5,26 +5,32 @@ import { buildTravelData, addSavedCity } from './travel.js';
 import { loadState, saveState, fmtTime } from './utils.js';
 import { ICONS, renderBottomNav, renderStatusBar } from './icons.js';
 
-// bandHeight is how tall the visible photo window is; height/top size and
-// position the actual <img> within it (object-fit:cover). Every value below
-// keeps the cover scale at or under 1.0 for its persona's source image
-// (checked against each photo's real resolution) so nothing gets upscaled —
-// bandHeight is capped per-persona wherever native resolution runs out.
-const DEFAULT_BAND_HEIGHT = 760;
+// `top` is the framing decision (how far down into the photo the visible
+// window starts) — kept fixed per persona. `height` is no longer a fixed
+// guess: the band is a real 100dvh (see styles.css), which varies by
+// device, so the wrapper height is computed at render time from the
+// *actual* rendered band height + |top|, per device, and capped against
+// each photo's real resolution (nativeH below) so upscale stays bounded
+// even on unusually tall viewports.
 const PHOTO_CROP = {
-  health: { right: '-190px', top: '-291px', height: '1051px', bandHeight: 760 },
-  fitness: { right: '0px', top: '-30px', height: '790px', bandHeight: 760 },
+  health: { right: '-190px', top: '-291px', nativeH: 1051 },
+  fitness: { right: '0px', top: '-30px', nativeH: 1307 },
   // This photo's subject sits close to the bottom of a very sky-heavy
-  // frame — extending bandHeight here doesn't help show more of them,
+  // frame — showing more of the band here doesn't reveal more of them,
   // since the opaque content-sheet always starts at the same viewport
   // position (wherever header+chips content ends) regardless of how
   // tall the photo band is. Keep the original, well-framed crop.
-  beach: { right: '0px', top: '-330px', height: '800px', bandHeight: 470 },
-  travel: { right: '-140px', top: '-150px', height: '910px', bandHeight: 760 },
-  family: { right: '-90px', top: '-86px', height: '736px', bandHeight: 650 },
-  agri: { right: '-160px', top: '-225px', height: '985px', bandHeight: 760 },
-  commute: { right: '-120px', top: '-190px', height: '950px', bandHeight: 760 },
+  beach: { right: '0px', top: '-330px', nativeH: 1104 },
+  travel: { right: '-140px', top: '-150px', nativeH: 1016 },
+  family: { right: '-90px', top: '-86px', nativeH: 736 },
+  agri: { right: '-160px', top: '-225px', nativeH: 985 },
+  commute: { right: '-120px', top: '-190px', nativeH: 960 },
 };
+// How far past native resolution a photo may be stretched to still reach
+// a genuinely tall device's full screen height, rather than leaving a gap.
+// 1.45 covers real phones up to ~950px tall (iPhone Pro Max, S23 Ultra
+// class) for even the lowest-resolution photo (family, 736px native).
+const MAX_UPSCALE = 1.45;
 
 const SCRIM_TINT = {
   health: '250,244,236', fitness: '244,247,236', beach: '248,243,242',
@@ -252,12 +258,12 @@ function render() {
     <div class="texture-glow"></div>
     <div class="texture-grain"></div>
 
-    <div class="hero-photo-band" style="height:${crop.bandHeight || DEFAULT_BAND_HEIGHT}px">
-      <div class="hero-photo-wrapper" style="left:0;right:${crop.right};top:${crop.top};height:${crop.height}">
+    <div class="hero-photo-band">
+      <div class="hero-photo-wrapper" style="left:0;right:${crop.right};top:${crop.top}">
         <img src="./assets/${persona}.png" alt="${personaDef.label}">
       </div>
     </div>
-    <div class="hero-scrim" style="height:${crop.bandHeight || DEFAULT_BAND_HEIGHT}px;background:
+    <div class="hero-scrim" style="background:
       linear-gradient(180deg,rgba(245,244,239,.22) 0%,rgba(245,244,239,.14) 50%,rgba(245,244,239,.55) 84%,rgba(245,244,239,.97) 100%),
       linear-gradient(96deg,rgba(${tint},.88) 0%,rgba(${tint},.62) 36%,rgba(${tint},.06) 74%,rgba(${tint},0) 100%)"></div>
     <div class="hero-accent-bar" style="background:linear-gradient(90deg,${personaDef.accent_bar[0]},${personaDef.accent_bar[1]} 55%,${personaDef.accent_bar[2]})"></div>
@@ -276,7 +282,24 @@ function render() {
   `;
 
   if (prevChipScroll) document.querySelector('.persona-scroll').scrollLeft = prevChipScroll;
+  sizeHeroPhoto(crop);
   wireEvents(personaDef);
+}
+
+// The band is a real 100dvh, which varies by device — a fixed px guess for
+// the wrapper's height was consistently shorter than people's actual
+// screens, leaving a gap between the photo and the content sheet. Size the
+// wrapper from the *actual* rendered band height on this device, capping
+// upscale so an unusually tall viewport doesn't blur the photo out badly.
+function sizeHeroPhoto(crop) {
+  const band = document.querySelector('.hero-photo-band');
+  const wrapper = document.querySelector('.hero-photo-wrapper');
+  if (!band || !wrapper) return;
+  const bandH = band.getBoundingClientRect().height;
+  const topPx = Math.abs(parseFloat(crop.top));
+  const needed = bandH + topPx;
+  const wrapperH = Math.min(needed, crop.nativeH * MAX_UPSCALE);
+  wrapper.style.height = Math.round(wrapperH) + 'px';
 }
 
 function renderHeader(alert) {

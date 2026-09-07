@@ -203,3 +203,36 @@ input{font-family:inherit}
 .search-result .region{font-size:11px;color:var(--ink-tertiary)}
 .search-empty{font-size:12.5px;color:var(--ink-tertiary);padding:10px 6px}
 .sample-tag{font-size:9px;font-weight:700;letter-spacing:.05em;color:rgba(23,26,28,.4);margin-left:4px}
+
+/* Alerts screen */
+.alerts-list{display:flex;flex-direction:column;gap:10px}
+.alert-card{border-radius:18px;padding:14px;border:1px solid;display:flex;flex-direction:column;gap:6px}
+.alert-card.tone-bad{background:#FCEAE5;border-color:rgba(194,69,45,.3)}
+.alert-card.tone-warn{background:#FDF1DC;border-color:rgba(201,119,42,.28)}
+.alert-card.tone-info{background:#EAF1F7;border-color:rgba(44,110,168,.25)}
+.alert-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.alert-card-badge{font-size:10.5px;font-weight:700;letter-spacing:.05em}
+.tone-bad .alert-card-badge{color:#8A2A18}
+.tone-warn .alert-card-badge{color:#8A4F13}
+.tone-info .alert-card-badge{color:#1A4E78}
+.alert-card-time{font-size:10.5px;color:var(--ink-tertiary);white-space:nowrap}
+.alert-card-title{font-size:14px;font-weight:700;color:var(--ink)}
+.alert-card-body{font-size:12.5px;line-height:1.45}
+.tone-bad .alert-card-body{color:#6B241A}
+.tone-warn .alert-card-body{color:#5D3A11}
+.tone-info .alert-card-body{color:#173C5C}
+.no-alerts-card{margin-top:4px;background:var(--card);border:1px solid var(--card-border);border-radius:20px;padding:28px 20px;text-align:center}
+.no-alerts-badge{width:40px;height:40px;border-radius:20px;background:#EAF0EC;color:var(--ok);font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
+.no-alerts-title{font-size:14px;font-weight:700;color:var(--ink)}
+.no-alerts-sub{font-size:12px;color:var(--ink-secondary);margin-top:4px}
+
+/* Saved screen */
+.saved-list{display:flex;flex-direction:column;gap:10px}
+.saved-card{background:var(--card);border:1px solid var(--card-border);border-radius:18px;padding:13px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 2px rgba(23,26,28,.04);cursor:pointer}
+.saved-card-main{flex:1;min-width:0}
+.saved-card-name{font-size:13.5px;font-weight:700;color:var(--ink)}
+.saved-card-note{font-size:11.5px;color:var(--ink-tertiary);margin-top:2px}
+.saved-card-temp{font-size:18px;font-weight:600;white-space:nowrap}
+.saved-remove{width:26px;height:26px;border-radius:13px;background:rgba(23,26,28,.06);color:var(--ink-secondary);font-size:13px;display:flex;align-items:center;justify-content:center;flex:none}
+.add-city-card{border:1px dashed rgba(23,26,28,.2);border-radius:18px;padding:14px;text-align:center;font-size:12.5px;font-weight:600;color:var(--ink-secondary);cursor:pointer}
+.current-city-tag{font-size:9px;font-weight:700;letter-spacing:.04em;color:var(--ok);background:rgba(46,125,91,.12);border-radius:999px;padding:2px 7px;margin-left:6px}

@@ -9,13 +9,19 @@ const DEFAULT_SAVED = [
 
 export function getSavedCities() {
   const s = loadState();
-  return Array.isArray(s.savedCities) && s.savedCities.length ? s.savedCities : DEFAULT_SAVED;
+  return Array.isArray(s.savedCities) ? s.savedCities : DEFAULT_SAVED;
 }
 
 export function addSavedCity(city) {
   const cur = getSavedCities();
   if (cur.some((c) => c.name === city.name)) return cur;
   const next = [city, ...cur].slice(0, 5);
+  saveState({ savedCities: next });
+  return next;
+}
+
+export function removeSavedCity(name) {
+  const next = getSavedCities().filter((c) => c.name !== name);
   saveState({ savedCities: next });
   return next;
 }

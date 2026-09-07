@@ -350,8 +350,8 @@ function renderNav() {
     <div class="bottom-nav">
       <div class="nav-item home active"><div class="glyph"></div><span class="label">Home</span></div>
       <a class="nav-item radar" href="./radar.html"><div class="glyph"></div><span class="label">Radar</span></a>
-      <div class="nav-item"><div class="glyph"></div><span class="label">Alerts</span></div>
-      <div class="nav-item"><div class="glyph"></div><span class="label">Saved</span></div>
+      <a class="nav-item alerts" href="./alerts.html"><div class="glyph"></div><span class="label">Alerts</span></a>
+      <a class="nav-item saved" href="./saved.html"><div class="glyph"></div><span class="label">Saved</span></a>
     </div>
   `;
 }

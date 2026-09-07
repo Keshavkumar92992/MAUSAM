@@ -1,0 +1,18 @@
+{
+  "name": "Mausam · मौसम",
+  "short_name": "Mausam",
+  "description": "Personalized weather app for India Meteorological Department",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F5F4EF",
+  "theme_color": "#F5F4EF",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "./assets/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

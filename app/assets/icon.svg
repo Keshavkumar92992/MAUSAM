@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDFBF7"/>
+      <stop offset="100%" stop-color="#EFECE5"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#FFE9B0"/>
+      <stop offset="65%" stop-color="#F2A93B"/>
+      <stop offset="100%" stop-color="#E0872A"/>
+    </radialGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#171A1C" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <!-- Background tile -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="112" fill="none" stroke="rgba(23,26,28,0.08)" stroke-width="4"/>
+
+  <!-- Sun -->
+  <circle cx="280" cy="220" r="110" fill="url(#sun)" filter="url(#glow)"/>
+
+  <!-- Cloud -->
+  <g filter="url(#shadow)">
+    <path d="M160 360 h210 a60 60 0 0 0 0-120 75 75 0 0 0-142-26 55 55 0 0 0-68 86 50 50 0 0 0 0 60 z" fill="#FFFFFF" fill-opacity="0.94"/>
+  </g>
+
+  <!-- Text: Mausam मौसम -->
+  <text x="256" y="430" text-anchor="middle" font-family="-apple-system, system-ui, sans-serif" font-weight="800" font-size="34" fill="#171A1C" letter-spacing="-0.5">Mausam · मौसम</text>
+</svg>

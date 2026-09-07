@@ -24,7 +24,7 @@ function shell(inner, alertCount = 0) {
           <span class="location-city">${city.name}${city.admin1 ? ', ' + city.admin1 : ''}</span>
           <span class="location-caret">▾</span>
         </a>
-        <div class="location-sub">IMD Doppler & Agromet Advisories · updated ${fmtTime(new Date())} IST</div>
+        <div class="location-sub">Derived from Open-Meteo thresholds · not official IMD warnings · ${fmtTime(new Date())} IST</div>
       </div>
       <div class="section-body">${inner}</div>
       <div class="footer-note">India Meteorological Department<br>Ministry of Earth Sciences, Government of India</div>

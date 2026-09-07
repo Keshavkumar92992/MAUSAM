@@ -159,7 +159,7 @@ function alertInfo(m) {
   const stormSoon = (m.daily.weather_code || []).slice(0, 1).some((c) => [95, 96, 99].includes(c));
   if (m.gustsMaxToday > 45 || stormSoon) {
     return {
-      eyebrow: 'YELLOW ALERT · IMD NOWCAST',
+      eyebrow: 'THUNDERSTORM RISK',
       body: `Thunderstorm with gusty winds (up to ${m.gustsMaxToday} km/h) possible today. Secure loose objects outdoors.`,
     };
   }
@@ -238,7 +238,7 @@ function renderHeader(alert) {
         <span class="location-city">${state.city.name}${state.city.admin1 ? ', ' + state.city.admin1 : ''}</span>
         <span class="location-caret">▾</span>
       </div>
-      <div class="location-sub">${m ? `Safdarjung / local station · updated ${fmtTime(new Date())} IST` : 'Locating station…'}</div>
+      <div class="location-sub">${m ? `Open-Meteo model data · updated ${fmtTime(new Date())} IST` : 'Loading conditions…'}</div>
 
       <div class="current-row">
         <div class="temp-block">

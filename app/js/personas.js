@@ -212,7 +212,7 @@ export function buildPersonaView(id, personaDef, metrics, travel) {
           tile('Wind gusts', M.gustsMaxToday, 'km/h', gusts.tone, gusts.label, M.gustsMaxToday, 60),
         ],
         panel: {
-          title: 'Kisan advisory', meta: 'Agromet · IMD',
+          title: 'Kisan advisory', meta: 'Derived · not IMD Agromet',
           rows: [
             { label: 'Irrigation', value: M.rain_48h_mm >= 15 ? 'Hold 2 days' : 'As scheduled', note: `${M.rain_48h_mm} mm rain expected next 48 h`, tone: M.rain_48h_mm >= 15 ? 'ok' : 'info' },
             { label: 'Sowing window', value: soil.tone === 'ok' ? 'Favourable' : 'Wait', note: 'Soil moisture and temperature', tone: soil.tone },

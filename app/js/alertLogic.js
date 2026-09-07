@@ -12,14 +12,14 @@ export function generateAlerts(m) {
 
   if (m.gustsMaxToday > 60 || (stormSoon && m.gustsMaxToday > 45)) {
     alerts.push({
-      tone: 'bad', badge: 'ORANGE ALERT · IMD NOWCAST',
+      tone: 'bad', badge: 'SEVERE THUNDERSTORM RISK',
       title: 'Severe thunderstorm warning',
       body: `Damaging gusts up to ${m.gustsMaxToday} km/h likely with thunderstorm activity. Avoid open areas and secure loose objects outdoors.`,
       time: now,
     });
   } else if (m.gustsMaxToday > 40 || stormSoon) {
     alerts.push({
-      tone: 'warn', badge: 'YELLOW ALERT · IMD NOWCAST',
+      tone: 'warn', badge: 'THUNDERSTORM RISK',
       title: 'Thunderstorm with gusty winds',
       body: `Gusty winds up to ${m.gustsMaxToday} km/h likely today. Secure loose objects outdoors and avoid standing under trees.`,
       time: now,
@@ -28,7 +28,7 @@ export function generateAlerts(m) {
 
   if (m.precip_prob_max24 > 75) {
     alerts.push({
-      tone: 'warn', badge: 'HEAVY RAINFALL · IMD NOWCAST',
+      tone: 'warn', badge: 'HEAVY RAINFALL RISK',
       title: 'Heavy rain, waterlogging likely',
       body: `Rain probability at ${Math.round(m.precip_prob_max24)}% today. Low-lying stretches and underpasses may see waterlogging.`,
       time: now,

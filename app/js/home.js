@@ -24,7 +24,7 @@ const PHOTO_CROP = {
   travel: { right: '-140px', top: '-150px', nativeH: 1016 },
   family: { right: '-90px', top: '-86px', nativeH: 736 },
   agri: { right: '-160px', top: '-225px', nativeH: 985 },
-  commute: { right: '-120px', top: '-190px', nativeH: 960 },
+  commute: { right: '-120px', top: '-80px', nativeH: 700 },
 };
 // How far past native resolution a photo may be stretched to still reach
 // a genuinely tall device's full screen height, rather than leaving a gap.

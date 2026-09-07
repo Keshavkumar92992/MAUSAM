@@ -4,9 +4,10 @@
 under the sandboxed process launcher used by the preview tool."""
 import functools
 import http.server
+import os
 import socketserver
 
-PORT = 5173
+PORT = int(os.environ.get("PORT", 5173))
 DIRECTORY = "/Users/keshavkumar/Desktop/design_handoff_mausam/app"
 
 Handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=DIRECTORY)

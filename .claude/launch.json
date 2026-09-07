@@ -5,7 +5,8 @@
       "name": "mausam-static",
       "runtimeExecutable": "python3",
       "runtimeArgs": ["/Users/keshavkumar/Desktop/design_handoff_mausam/app/serve.py"],
-      "port": 5173
+      "port": 5173,
+      "autoPort": true
     }
   ]
 }

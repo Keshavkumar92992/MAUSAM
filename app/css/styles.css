@@ -71,7 +71,7 @@ input{font-family:inherit}
   background:rgba(255,255,255,.16);color:#fff;
 }
 .home-indicator{
-  position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+  position:fixed;bottom:8px;left:50%;transform:translateX(-50%);
   width:134px;height:5px;border-radius:100px;background:rgba(23,26,28,.22);
   z-index:60;pointer-events:none;
 }
@@ -102,7 +102,7 @@ input{font-family:inherit}
 .hero-scrim{position:absolute;top:0;left:0;right:0;height:470px;pointer-events:none;z-index:1;transition:background .35s ease}
 .hero-accent-bar{position:absolute;top:0;left:0;right:0;height:4px;z-index:2}
 
-.content{position:relative;z-index:2}
+.content{position:relative;z-index:2;padding-bottom:96px}
 
 .header-block{padding:54px 20px 24px}
 .wordmark-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
@@ -203,11 +203,18 @@ input{font-family:inherit}
 
 .footer-note{font-size:10.5px;line-height:1.6;color:var(--ink-secondary);text-align:center;padding:16px 10px 8px}
 
-/* Unified SVG Bottom Navigation */
+/* Unified SVG Bottom Navigation — fixed to the viewport so it's always
+   visible, not just once you scroll far enough for a sticky element to
+   catch up (that was the bug: it "appeared" only near the bottom). */
 .bottom-nav{
-  position:sticky;bottom:0;background:rgba(245,244,239,.88);backdrop-filter:blur(16px);
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:402px;max-width:100vw;
+  background:rgba(245,244,239,.88);backdrop-filter:blur(16px);
   border-top:1px solid rgba(23,26,28,.08);display:grid;grid-template-columns:repeat(4,1fr);
   padding:10px 8px 30px;z-index:30;
+}
+@media (max-width:440px){
+  .bottom-nav{left:0;transform:none;width:100%}
 }
 .nav-item{
   display:flex;flex-direction:column;align-items:center;gap:4px;

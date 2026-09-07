@@ -5,15 +5,25 @@ import { buildTravelData, addSavedCity } from './travel.js';
 import { loadState, saveState, fmtTime } from './utils.js';
 import { ICONS, renderBottomNav, renderStatusBar } from './icons.js';
 
-const DEFAULT_BAND_HEIGHT = 470;
+// bandHeight is how tall the visible photo window is; height/top size and
+// position the actual <img> within it (object-fit:cover). Every value below
+// keeps the cover scale at or under 1.0 for its persona's source image
+// (checked against each photo's real resolution) so nothing gets upscaled —
+// bandHeight is capped per-persona wherever native resolution runs out.
+const DEFAULT_BAND_HEIGHT = 760;
 const PHOTO_CROP = {
-  health: { right: '-190px', top: '-300px', height: '970px', bandHeight: 640 },
-  travel: { right: '-140px', top: '-150px', height: '700px' },
-  family: { right: '-90px', top: '-90px', height: '560px' },
-  agri: { right: '-160px', top: '-280px', height: '760px' },
-  commute: { right: '-120px', top: '-190px', height: '700px' },
-  beach: { right: '0px', top: '-330px', height: '800px' },
-  fitness: { right: '0px', top: '-30px', height: '710px', bandHeight: 640 },
+  health: { right: '-190px', top: '-291px', height: '1051px', bandHeight: 760 },
+  fitness: { right: '0px', top: '-30px', height: '790px', bandHeight: 760 },
+  // This photo's subject sits close to the bottom of a very sky-heavy
+  // frame — extending bandHeight here doesn't help show more of them,
+  // since the opaque content-sheet always starts at the same viewport
+  // position (wherever header+chips content ends) regardless of how
+  // tall the photo band is. Keep the original, well-framed crop.
+  beach: { right: '0px', top: '-330px', height: '800px', bandHeight: 470 },
+  travel: { right: '-140px', top: '-150px', height: '910px', bandHeight: 760 },
+  family: { right: '-90px', top: '-86px', height: '736px', bandHeight: 650 },
+  agri: { right: '-160px', top: '-225px', height: '985px', bandHeight: 760 },
+  commute: { right: '-120px', top: '-190px', height: '950px', bandHeight: 760 },
 };
 
 const SCRIM_TINT = {

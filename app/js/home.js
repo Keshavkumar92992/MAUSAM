@@ -184,6 +184,12 @@ function render() {
   const tint = SCRIM_TINT[persona];
   const alert = state.metrics ? alertInfo(state.metrics) : null;
 
+  // root.innerHTML replaces the persona-chip row with a brand new element,
+  // which resets its horizontal scroll to 0 — so scrolling right to reach
+  // Agriculture/Commuters and tapping one snapped the row straight back to
+  // the start on every single switch. Preserve it across the re-render.
+  const prevChipScroll = document.querySelector('.persona-scroll')?.scrollLeft;
+
   root.innerHTML = `
     ${renderStatusBar(false)}
 
@@ -212,6 +218,7 @@ function render() {
     ${state.searchOpen ? renderSearch() : ''}
   `;
 
+  if (prevChipScroll) document.querySelector('.persona-scroll').scrollLeft = prevChipScroll;
   wireEvents(personaDef);
 }
 

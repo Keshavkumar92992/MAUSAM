@@ -5,19 +5,84 @@ const FORECAST_BASE = 'https://api.open-meteo.com/v1/forecast';
 const AIR_QUALITY_BASE = 'https://air-quality-api.open-meteo.com/v1/air-quality';
 const GEOCODE_BASE = 'https://geocoding-api.open-meteo.com/v1/search';
 
+// Open-Meteo's geocoder is a literal place-name index — searching an
+// Indian STATE name (e.g. "Bihar") mostly matches tiny same-named
+// villages elsewhere (Bangladesh, Pakistan, obscure hamlets), not the
+// state itself, since it has no notion of administrative regions.
+// Resolve state/UT names to their capital city directly instead.
+const INDIAN_STATES = {
+  'andhra pradesh': { name: 'Amaravati', admin1: 'Andhra Pradesh', lat: 16.5062, lon: 80.6480 },
+  'arunachal pradesh': { name: 'Itanagar', admin1: 'Arunachal Pradesh', lat: 27.0844, lon: 93.6053 },
+  assam: { name: 'Guwahati', admin1: 'Assam', lat: 26.1445, lon: 91.7362 },
+  bihar: { name: 'Patna', admin1: 'Bihar', lat: 25.5941, lon: 85.1376 },
+  chhattisgarh: { name: 'Raipur', admin1: 'Chhattisgarh', lat: 21.2514, lon: 81.6296 },
+  goa: { name: 'Panaji', admin1: 'Goa', lat: 15.4909, lon: 73.8278 },
+  gujarat: { name: 'Gandhinagar', admin1: 'Gujarat', lat: 23.2156, lon: 72.6369 },
+  haryana: { name: 'Chandigarh', admin1: 'Haryana', lat: 30.7333, lon: 76.7794 },
+  'himachal pradesh': { name: 'Shimla', admin1: 'Himachal Pradesh', lat: 31.1048, lon: 77.1734 },
+  jharkhand: { name: 'Ranchi', admin1: 'Jharkhand', lat: 23.3441, lon: 85.3096 },
+  karnataka: { name: 'Bengaluru', admin1: 'Karnataka', lat: 12.9716, lon: 77.5946 },
+  kerala: { name: 'Thiruvananthapuram', admin1: 'Kerala', lat: 8.5241, lon: 76.9366 },
+  'madhya pradesh': { name: 'Bhopal', admin1: 'Madhya Pradesh', lat: 23.2599, lon: 77.4126 },
+  maharashtra: { name: 'Mumbai', admin1: 'Maharashtra', lat: 19.0760, lon: 72.8777 },
+  manipur: { name: 'Imphal', admin1: 'Manipur', lat: 24.8170, lon: 93.9368 },
+  meghalaya: { name: 'Shillong', admin1: 'Meghalaya', lat: 25.5788, lon: 91.8933 },
+  mizoram: { name: 'Aizawl', admin1: 'Mizoram', lat: 23.7271, lon: 92.7176 },
+  nagaland: { name: 'Kohima', admin1: 'Nagaland', lat: 25.6751, lon: 94.1086 },
+  odisha: { name: 'Bhubaneswar', admin1: 'Odisha', lat: 20.2961, lon: 85.8245 },
+  punjab: { name: 'Chandigarh', admin1: 'Punjab', lat: 30.7333, lon: 76.7794 },
+  rajasthan: { name: 'Jaipur', admin1: 'Rajasthan', lat: 26.9124, lon: 75.7873 },
+  sikkim: { name: 'Gangtok', admin1: 'Sikkim', lat: 27.3389, lon: 88.6065 },
+  'tamil nadu': { name: 'Chennai', admin1: 'Tamil Nadu', lat: 13.0827, lon: 80.2707 },
+  telangana: { name: 'Hyderabad', admin1: 'Telangana', lat: 17.3850, lon: 78.4867 },
+  tripura: { name: 'Agartala', admin1: 'Tripura', lat: 23.8315, lon: 91.2868 },
+  'uttar pradesh': { name: 'Lucknow', admin1: 'Uttar Pradesh', lat: 26.8467, lon: 80.9462 },
+  uttarakhand: { name: 'Dehradun', admin1: 'Uttarakhand', lat: 30.3165, lon: 78.0322 },
+  'west bengal': { name: 'Kolkata', admin1: 'West Bengal', lat: 22.5726, lon: 88.3639 },
+  'andaman and nicobar islands': { name: 'Port Blair', admin1: 'Andaman and Nicobar Islands', lat: 11.6234, lon: 92.7265 },
+  chandigarh: { name: 'Chandigarh', admin1: 'Chandigarh', lat: 30.7333, lon: 76.7794 },
+  'dadra and nagar haveli and daman and diu': { name: 'Daman', admin1: 'Dadra and Nagar Haveli and Daman and Diu', lat: 20.3974, lon: 72.8328 },
+  delhi: { name: 'New Delhi', admin1: 'Delhi', lat: 28.6139, lon: 77.2090 },
+  'jammu and kashmir': { name: 'Srinagar', admin1: 'Jammu and Kashmir', lat: 34.0837, lon: 74.7973 },
+  ladakh: { name: 'Leh', admin1: 'Ladakh', lat: 34.1526, lon: 77.5771 },
+  lakshadweep: { name: 'Kavaratti', admin1: 'Lakshadweep', lat: 10.5669, lon: 72.6420 },
+  puducherry: { name: 'Puducherry', admin1: 'Puducherry', lat: 11.9416, lon: 79.8083 },
+};
+
+function matchIndianStates(query) {
+  const q = query.trim().toLowerCase();
+  if (q.length < 3) return [];
+  return Object.entries(INDIAN_STATES)
+    .filter(([key]) => key === q || key.includes(q) || q.includes(key))
+    .map(([, place]) => ({ name: place.name, admin1: place.admin1, country: 'India', lat: place.lat, lon: place.lon }));
+}
+
 export async function geocodeCity(query) {
   if (!query || query.trim().length < 2) return [];
+  const stateMatches = matchIndianStates(query);
   const url = `${GEOCODE_BASE}?name=${encodeURIComponent(query.trim())}&count=6&language=en&format=json`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error('geocode failed');
+  if (!res.ok) {
+    if (stateMatches.length) return stateMatches;
+    throw new Error('geocode failed');
+  }
   const data = await res.json();
-  return (data.results || []).map((r) => ({
+  const placeMatches = (data.results || []).map((r) => ({
     name: r.name,
     admin1: r.admin1 || '',
     country: r.country || '',
     lat: r.latitude,
     lon: r.longitude,
   }));
+  // State/UT match (e.g. its capital) leads, since it's almost always
+  // what someone searching a region name actually wants.
+  const seen = new Set();
+  return [...stateMatches, ...placeMatches].filter((p) => {
+    const key = `${p.name}|${p.lat}|${p.lon}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export async function fetchWeatherBundle(lat, lon) {

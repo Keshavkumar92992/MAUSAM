@@ -28,9 +28,16 @@ const RAMP = ['#4FB8C9', '#3E8FD8', '#7A5AA8', '#C2452D', '#8E2418'];
 const saved = loadState();
 const cityName = saved.city?.name || 'New Delhi';
 document.getElementById('city-label').textContent = cityName === 'New Delhi' ? 'New Delhi (Palam)' : cityName;
+
+// Keep the map's highlighted station in sync with the header. If the
+// selected city isn't one of the five fixed markers, plot it rather
+// than leaving Delhi highlighted while the header names another city.
 const hqCity = CITIES.find((c) => c.n === cityName);
 if (hqCity) {
   CITIES.forEach((c) => (c.hq = c === hqCity));
+} else if (saved.city?.lat != null && saved.city?.lon != null) {
+  CITIES.forEach((c) => (c.hq = false));
+  CITIES.push({ n: cityName, lon: saved.city.lon, lat: saved.city.lat, hq: true });
 }
 
 const svg = d3.select('#map');
@@ -61,7 +68,26 @@ Promise.all([
 ]).then(([topo, rect]) => {
   const countries = topojson.feature(topo, topo.objects.countries);
   const india = countries.features.find((f) => f.id === '356');
+
+  buildMap(countries, india, rect);
+
+  // The projection is fitted to a fixed pixel size, and the SVG has no
+  // viewBox, so nothing rescales on its own — a rotation, or iOS Safari
+  // collapsing its address bar mid-scroll, would leave India clipped off
+  // one edge with dead space on another. Refit whenever the panel resizes.
+  let resizeDebounce = null;
+  new ResizeObserver((entries) => {
+    const r = entries[0].contentRect;
+    if (r.width < 1 || r.height < 1) return;
+    if (Math.abs(r.width - W) < 2 && Math.abs(r.height - H) < 2) return;
+    clearTimeout(resizeDebounce);
+    resizeDebounce = setTimeout(() => buildMap(countries, india, r), 120);
+  }).observe(document.getElementById('map'));
+});
+
+function buildMap(countries, india, rect) {
   W = rect.width; H = rect.height;
+  svg.selectAll('*').remove();
   projection = d3.geoMercator().fitExtent([[16, 22], [W - 16, H - 22]], india);
   path = d3.geoPath(projection);
 
@@ -112,9 +138,12 @@ Promise.all([
   });
 
   draw();
-});
+}
 
 function draw() {
+  // The slider and layer chips are live before the map geometry finishes
+  // loading; without this, an early interaction throws on a null projection.
+  if (!projection) return;
   const scale = projection.scale();
   const kmToPx = scale / 6371;
   const g = svg.select('#echoes');

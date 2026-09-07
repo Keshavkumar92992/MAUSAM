@@ -52,6 +52,13 @@
   .nowcast-eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.05em;color:#F0C889}
   .nowcast-body{font-size:12.5px;line-height:1.45;color:#F5EFE3;margin-top:3px}
   .radar-content{display:flex;flex-direction:column;min-height:874px;padding-bottom:96px}
+  @media (max-width:440px){
+    /* On a real phone, fit the actual viewport instead of the 874px
+       design-frame height — otherwise the layout runs taller than the
+       screen and the nowcast card ends up behind the fixed nav bar.
+       dvh tracks iOS Safari's collapsing address bar; vh is the fallback. */
+    .radar-content{min-height:100vh;min-height:100dvh}
+  }
 
   @keyframes pulseRing {
     0% { r: 5px; opacity: 0.85; }

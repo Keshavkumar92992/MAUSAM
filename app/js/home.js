@@ -1,4 +1,4 @@
-import { geocodeCity, fetchWeatherBundle } from './weatherApi.js';
+import { geocodeCity, fetchWeatherBundle, getCurrentLocation } from './weatherApi.js';
 import { buildMetrics } from './metrics.js';
 import { buildPersonaView } from './personas.js';
 import { buildTravelData, addSavedCity } from './travel.js';
@@ -45,6 +45,7 @@ const state = {
   searchOpen: false,
   searchResults: [],
   searchQuery: '',
+  menuOpen: false,
 };
 
 async function init() {
@@ -106,7 +107,17 @@ async function onSearchInput(value) {
     } catch {
       state.searchResults = [];
     }
+    // render() replaces innerHTML, which recreates the <input> and
+    // drops focus — on mobile that dismisses the keyboard after every
+    // pause in typing. Restore focus + cursor position after re-render.
+    const prevInput = document.getElementById('search-input');
+    const caret = prevInput ? prevInput.selectionStart : null;
     render();
+    const nextInput = document.getElementById('search-input');
+    if (nextInput) {
+      nextInput.focus();
+      if (caret != null) nextInput.setSelectionRange(caret, caret);
+    }
   }, 250);
 }
 
@@ -118,36 +129,24 @@ async function selectCity(c) {
   await loadWeather();
 }
 
-function useCurrentLocation() {
-  if (!navigator.geolocation) {
-    alert('Geolocation is not supported by your browser.');
+async function useCurrentLocation() {
+  const geoBtn = document.getElementById('btn-geo');
+  // Geolocation is blocked outside a secure context (https, or the
+  // literal hostname "localhost") — a plain http://<lan-ip> address,
+  // which is how this app is reached over Wi-Fi, does not qualify, and
+  // the browser refuses before ever prompting for permission.
+  if (!window.isSecureContext) {
+    if (geoBtn) geoBtn.textContent = 'Needs HTTPS — unavailable on this address';
     return;
   }
-  const geoBtn = document.getElementById('btn-geo');
-  if (geoBtn) geoBtn.textContent = 'Locating GPS position…';
-
-  navigator.geolocation.getCurrentPosition(
-    async (pos) => {
-      const lat = Number(pos.coords.latitude.toFixed(4));
-      const lon = Number(pos.coords.longitude.toFixed(4));
-      let name = 'My Location';
-      try {
-        const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
-        if (res.ok) {
-          const data = await res.json();
-          name = data.city || data.locality || data.principalSubdivision || 'My Location';
-        }
-      } catch {
-        // keep fallback
-      }
-      selectCity({ name, admin1: '', country: 'India', lat, lon });
-    },
-    (err) => {
-      alert('Unable to retrieve location: ' + err.message);
-      if (geoBtn) geoBtn.textContent = 'Use My Current Location';
-    },
-    { timeout: 8000 }
-  );
+  if (geoBtn) geoBtn.textContent = 'Locating…';
+  try {
+    const place = await getCurrentLocation();
+    await selectCity({ name: place.name, admin1: place.admin1, country: place.country || 'India', lat: place.lat, lon: place.lon });
+  } catch (err) {
+    if (geoBtn) geoBtn.textContent = err.message || 'Could not get your location';
+    setTimeout(() => { if (geoBtn) geoBtn.textContent = 'Use My Current Location'; }, 3000);
+  }
 }
 
 function saveDestination() {
@@ -212,6 +211,7 @@ function render() {
     </div>
     <div class="home-indicator"></div>
     ${state.searchOpen ? renderSearch() : ''}
+    ${state.menuOpen ? renderMenu() : ''}
   `;
 
   wireEvents(personaDef);
@@ -401,8 +401,8 @@ function renderSearch() {
           <button class="search-close" id="search-close">Cancel</button>
         </div>
 
-        <button class="geo-btn" id="btn-geo">
-          ${ICONS.location('', 'currentColor')} Use My Current Location
+        <button class="geo-btn" id="btn-geo" ${window.isSecureContext ? '' : 'disabled title="Needs a secure (https) connection — works once this app is deployed"'}>
+          ${ICONS.location('', 'currentColor')} ${window.isSecureContext ? 'Use My Current Location' : 'Location needs HTTPS (unavailable here)'}
         </button>
 
         <div class="search-quick-title">POPULAR MET STATIONS</div>
@@ -426,6 +426,41 @@ function renderSearch() {
   `;
 }
 
+function renderMenu() {
+  return `
+    <div class="search-overlay" id="menu-overlay">
+      <div class="search-panel menu-panel">
+        <div class="menu-header">
+          <div class="wordmark"><span class="en">Mausam</span><span class="hi">मौसम</span></div>
+          <button class="search-close" id="menu-close">Close</button>
+        </div>
+        <div class="menu-row" data-menu-nav="./alerts.html">
+          <span>Alerts</span><span class="menu-arrow">›</span>
+        </div>
+        <div class="menu-row" data-menu-nav="./saved.html">
+          <span>Saved cities</span><span class="menu-arrow">›</span>
+        </div>
+        <div class="menu-row" id="menu-refresh">
+          <span>Refresh weather data</span><span class="menu-arrow">↻</span>
+        </div>
+        <a class="menu-row" href="https://mausam.imd.gov.in" target="_blank" rel="noopener">
+          <span>IMD official site</span><span class="menu-arrow">↗</span>
+        </a>
+        <div class="menu-about">
+          Persona-driven weather for India — live data from Open-Meteo. A few
+          fields (pollen, tides, traffic) are sample data where no free feed
+          exists; see the project README for details.
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function toggleMenu() {
+  state.menuOpen = !state.menuOpen;
+  render();
+}
+
 function wireEvents() {
   document.getElementById('btn-search')?.addEventListener('click', openSearch);
   document.getElementById('location-row')?.addEventListener('click', openSearch);
@@ -434,6 +469,18 @@ function wireEvents() {
     if (e.target.id === 'search-overlay') closeSearch();
   });
   document.getElementById('btn-geo')?.addEventListener('click', useCurrentLocation);
+  document.getElementById('btn-menu')?.addEventListener('click', toggleMenu);
+  document.getElementById('menu-close')?.addEventListener('click', toggleMenu);
+  document.getElementById('menu-overlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'menu-overlay') toggleMenu();
+  });
+  document.getElementById('menu-refresh')?.addEventListener('click', () => {
+    state.menuOpen = false;
+    loadWeather();
+  });
+  document.querySelectorAll('[data-menu-nav]').forEach((el) => {
+    el.addEventListener('click', () => { window.location.href = el.dataset.menuNav; });
+  });
   document.querySelectorAll('.search-chip').forEach((el) => {
     el.addEventListener('click', () => selectCity(POPULAR_CITIES[+el.dataset.quick]));
   });

@@ -57,6 +57,53 @@ export async function fetchDestinationSummary(lat, lon) {
   };
 }
 
+// Reverse geocode via BigDataCloud's free client-side endpoint (no API
+// key, CORS-friendly) — Open-Meteo's geocoder is forward-search only.
+export async function reverseGeocode(lat, lon) {
+  const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('reverse geocode failed');
+  const data = await res.json();
+  return {
+    name: data.city || data.locality || data.principalSubdivision || 'Current location',
+    admin1: data.principalSubdivision || '',
+    country: data.countryName || '',
+  };
+}
+
+// Wraps the browser Geolocation API in a promise and attaches a
+// human-readable name via reverseGeocode, with a plain fallback label
+// if that lookup fails (coordinates alone are still enough to fetch weather).
+export function getCurrentLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation is not supported on this device/browser'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = +pos.coords.latitude.toFixed(4);
+        const lon = +pos.coords.longitude.toFixed(4);
+        try {
+          const place = await reverseGeocode(lat, lon);
+          resolve({ ...place, lat, lon });
+        } catch {
+          resolve({ name: 'Current location', admin1: '', country: '', lat, lon });
+        }
+      },
+      (err) => {
+        const messages = {
+          1: 'Location permission denied — enable it in your browser/phone settings.',
+          2: 'Could not determine your location right now.',
+          3: 'Location request timed out.',
+        };
+        reject(new Error(messages[err.code] || 'Could not get your location.'));
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 }
+    );
+  });
+}
+
 export function weatherCodeToCondition(code) {
   // WMO weather codes -> short label + coarse icon family
   if (code === 0) return { label: 'Clear', icon: 'sun' };

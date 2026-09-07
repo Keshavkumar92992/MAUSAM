@@ -1,7 +1,7 @@
-import { geocodeCity, fetchDestinationSummary } from './weatherApi.js';
+import { geocodeCity, fetchDestinationSummary, getCurrentLocation } from './weatherApi.js';
 import { getSavedCities, addSavedCity, removeSavedCity } from './travel.js';
 import { loadState, saveState } from './utils.js';
-import { renderBottomNav, renderStatusBar } from './icons.js';
+import { renderBottomNav, renderStatusBar, ICONS } from './icons.js';
 
 const POPULAR_SUGGESTIONS = [
   { name: 'Mumbai, Maharashtra', lat: 19.0760, lon: 72.8777 },
@@ -68,6 +68,10 @@ function renderSearch() {
           <button class="search-close" id="search-close">Cancel</button>
         </div>
 
+        <button class="geo-btn" id="btn-geo" ${window.isSecureContext ? '' : 'disabled title="Needs a secure (https) connection — works once this app is deployed"'}>
+          ${ICONS.location('', 'currentColor')} ${window.isSecureContext ? 'Add My Current Location' : 'Location needs HTTPS (unavailable here)'}
+        </button>
+
         <div class="search-quick-title">SUGGESTED DESTINATIONS</div>
         <div class="search-chips">
           ${POPULAR_SUGGESTIONS.map((c, i) => `
@@ -100,6 +104,7 @@ function wire() {
     if (e.target.id === 'search-overlay') { state.searchOpen = false; render(); }
   });
   document.getElementById('search-input')?.addEventListener('input', onSearchInput);
+  document.getElementById('btn-geo')?.addEventListener('click', useCurrentLocationAsSaved);
   document.querySelectorAll('.search-chip[data-sugg]').forEach((el) => {
     el.addEventListener('click', async () => {
       const s = POPULAR_SUGGESTIONS[+el.dataset.sugg];
@@ -137,14 +142,35 @@ function wire() {
   });
 }
 
+async function useCurrentLocationAsSaved() {
+  const geoBtn = document.getElementById('btn-geo');
+  if (!window.isSecureContext) return;
+  if (geoBtn) geoBtn.textContent = 'Locating…';
+  try {
+    const place = await getCurrentLocation();
+    addSavedCity({ name: `${place.name}${place.admin1 ? ', ' + place.admin1 : ''}`, lat: place.lat, lon: place.lon });
+    state.searchOpen = false;
+    render();
+    await loadCities();
+  } catch (err) {
+    if (geoBtn) geoBtn.textContent = err.message || 'Could not get your location';
+    setTimeout(() => { if (geoBtn) geoBtn.textContent = 'Add My Current Location'; }, 3000);
+  }
+}
+
 let searchDebounce = null;
 function onSearchInput(e) {
   state.searchQuery = e.target.value;
   if (searchDebounce) clearTimeout(searchDebounce);
   searchDebounce = setTimeout(async () => {
     try { state.searchResults = await geocodeCity(state.searchQuery); } catch { state.searchResults = []; }
+    const caret = e.target.selectionStart;
     render();
-    document.getElementById('search-input')?.focus();
+    const nextInput = document.getElementById('search-input');
+    if (nextInput) {
+      nextInput.focus();
+      if (caret != null) nextInput.setSelectionRange(caret, caret);
+    }
   }, 250);
 }
 

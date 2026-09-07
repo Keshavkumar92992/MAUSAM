@@ -110,6 +110,12 @@ input{font-family:inherit}
 .content{position:relative;z-index:2;padding-bottom:96px}
 
 .header-block{padding:54px 20px 24px}
+@media (max-width:440px){
+  /* That 54px was reserved for the fake status bar, which is now hidden
+     on real phones — the real OS status bar sits outside the page, so
+     this just needs a small safe gap, not the mockup's reserved space. */
+  .header-block{padding-top:20px}
+}
 .wordmark-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
 .wordmark{display:flex;align-items:baseline;gap:9px}
 .wordmark .en{font-size:22px;font-weight:700;line-height:1;letter-spacing:-.015em}
@@ -275,6 +281,19 @@ input{font-family:inherit}
   border:1px solid rgba(46,125,91,.2);cursor:pointer;transition:background .15s;
 }
 .geo-btn:hover{background:#dbe8de}
+.geo-btn:disabled{background:rgba(23,26,28,.05);color:var(--ink-tertiary);border-color:rgba(23,26,28,.1);cursor:not-allowed}
+.geo-btn:disabled:hover{background:rgba(23,26,28,.05)}
+
+.menu-panel{gap:2px}
+.menu-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.menu-row{
+  display:flex;align-items:center;justify-content:space-between;padding:13px 4px;
+  border-top:1px solid rgba(23,26,28,.07);font-size:13.5px;font-weight:600;
+  color:var(--ink);text-decoration:none;cursor:pointer;
+}
+.menu-row:first-of-type{border-top:none}
+.menu-arrow{color:var(--ink-tertiary);font-size:14px}
+.menu-about{font-size:11.5px;line-height:1.5;color:var(--ink-tertiary);margin-top:10px;padding-top:10px;border-top:1px solid rgba(23,26,28,.07)}
 .search-results{margin-top:8px;overflow-y:auto}
 .search-result{padding:10px 8px;border-top:1px solid rgba(23,26,28,.07);cursor:pointer;font-size:13px;border-radius:8px}
 .search-result:hover{background:rgba(23,26,28,.04)}

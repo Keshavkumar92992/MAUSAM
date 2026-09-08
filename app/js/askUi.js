@@ -5,9 +5,11 @@
 // persona tap and every background refresh, which would wipe the
 // conversation and drop keyboard focus mid-sentence.
 import { t, getLocale, registerEntries } from './i18n.js';
-import { weatherCodeToCondition } from './weatherApi.js';
+import { weatherCodeToCondition, geocodeCity, fetchWeatherBundle } from './weatherApi.js';
+import { buildMetrics } from './metrics.js';
+import { speak, stopSpeaking, isSpeaking, voiceSupported, warmVoices, speakerIcon } from './voice.js';
 import {
-  parseIntent, analyse, bestWindow, findAlternatives,
+  parseIntent, analyse, bestWindow, findAlternatives, extractPlace,
   windowLabel, hazardText, activityLabel, isSlopeKind, proactiveInsight,
 } from './askEngine.js';
 
@@ -19,6 +21,7 @@ let statusEl = null;
 let getContext = null;
 let destinations = null;
 let greeted = false;
+let builtLocale = null;
 
 // Voice input. Chrome/Edge/Safari expose this (Safari only under the webkit
 // prefix); Firefox does not.
@@ -113,6 +116,13 @@ function buildAnswer({ metrics, city, persona }, question, list) {
     headline = win
       ? t('ask.ans.time', { act, place: city.name, win: windowLabel(win) })
       : t('ask.ans.time_none', { act, place: city.name });
+  } else if (intent === 'gear') {
+    // Umbrella questions want a yes/no about rain, not an activity verdict.
+    const uvHigh = (metrics.uv_index_max || 0) >= 8 && peaks.rain < 25;
+    headline = uvHigh
+      ? t('ask.gear.sun', { uv: metrics.uv_index_max })
+      : t(peaks.rain >= 50 ? 'ask.ans.gear_yes' : peaks.rain >= 25 ? 'ask.ans.gear_maybe' : 'ask.ans.gear_no',
+        { place: city.name, rain: peaks.rain });
   } else if (intent === 'forecast') {
     headline = tmr
       ? t('ask.ans.forecast_tmr', {
@@ -222,6 +232,29 @@ function renderAlternatives(slot, alts, { win, level, place }) {
   slot.appendChild(wrap);
 }
 
+// "weather in Mumbai" used to be answered for whichever city the home
+// screen was on. Resolve the name through the same geocoder the search box
+// uses, then run the normal pipeline against that city's forecast — no
+// second weather path, no second city list.
+async function resolveAskedCity(question, current) {
+  const phrase = extractPlace(question);
+  if (!phrase) return { city: current };
+  if (phrase.toLowerCase() === (current.name || '').toLowerCase()) return { city: current };
+  try {
+    const hits = await geocodeCity(phrase);
+    if (!hits.length) return { city: current, missed: phrase };
+    const hit = hits.find((h) => h.country === 'India') || hits[0];
+    const bundle = await fetchWeatherBundle(hit.lat, hit.lon);
+    return {
+      city: { name: hit.name, admin1: hit.admin1, country: hit.country, lat: hit.lat, lon: hit.lon },
+      metrics: buildMetrics(bundle, hit.name),
+      switched: true,
+    };
+  } catch {
+    return { city: current, missed: phrase };
+  }
+}
+
 function scrollLog() {
   if (logEl) logEl.scrollTop = logEl.scrollHeight;
 }
@@ -276,7 +309,7 @@ function startVoice(btn) {
     // Only send what was actually recognised — an interim fragment left in
     // the box after a cancelled capture should not fire off a question.
     const said = finalText.trim();
-    if (said) { inputEl.value = ''; ask(said); }
+    if (said) { inputEl.value = ''; ask(said, { spoken: true }); }
   };
 
   try {
@@ -286,9 +319,11 @@ function startVoice(btn) {
   }
 }
 
-async function ask(question) {
-  const ctx = getContext();
-  if (!ctx?.metrics) return;
+// spoken: the question arrived by voice, so the answer is read back without
+// being asked — a voice exchange that only replies in text is half a feature.
+async function ask(question, { spoken = false } = {}) {
+  const base = getContext();
+  if (!base?.metrics) return;
 
   logEl.appendChild(el('div', 'ask-msg user', question));
   const pending = el('div', 'ask-msg bot ask-pending', t('ask.thinking'));
@@ -296,14 +331,85 @@ async function ask(question) {
   scrollLog();
 
   const list = await loadDestinations();
+  const asked = await resolveAskedCity(question, base.city);
+  const ctx = asked.metrics
+    ? { ...base, city: asked.city, metrics: asked.metrics }
+    : base;
+
   const built = buildAnswer(ctx, question, list);
   if (built.needsAlts) {
     const alts = await findAlternatives({ lat: ctx.city.lat, lon: ctx.city.lon }, built.activity, list);
     renderAlternatives(built.slot, alts, built);
   }
   const { card } = built;
+
+  // Say which city this is about when it is not the one on screen, so a
+  // number for another city can never be mistaken for the local one.
+  if (asked.switched) {
+    card.insertBefore(el('div', 'ask-city-note', t('ask.city.switched', { place: asked.city.name })), card.firstChild);
+  } else if (asked.missed) {
+    card.insertBefore(
+      el('div', 'ask-city-note', t('ask.city.notfound', { name: asked.missed, place: base.city.name })),
+      card.firstChild);
+  }
+
+  addSpeaker(card);
   pending.replaceWith(card);
   scrollLog();
+  if (spoken && voiceSupported()) speakCard(card);
+}
+
+// Reads the card back. The section labels ("WEATHER", "RISK") are visual
+// scaffolding — spoken aloud they sound like an error message, so only the
+// sentences are read.
+function cardSpeech(card) {
+  const parts = [];
+  card.querySelectorAll('.ask-city-note, .ask-ans, .ask-v, .ask-lvl, .ask-alt-name, .ask-alt-meta')
+    .forEach((n) => {
+      const s = (n.textContent || '').trim().replace(/[.\u0964]+$/, '');
+      if (s) parts.push(s);
+    });
+  // Sentences already end in a full stop (or a Devanagari danda), so strip it
+  // before joining — otherwise the synth reads a stumbling double pause.
+  return parts.join('. ') + '.';
+}
+
+function setSpeakerState(btn, on) {
+  btn.classList.toggle('on', on);
+  btn.innerHTML = speakerIcon(on);
+  btn.setAttribute('aria-label', t(on ? 'voice.stop' : 'voice.speak'));
+}
+
+function speakCard(card) {
+  const btn = card.querySelector('.ask-speak');
+  const status = speak(cardSpeech(card), { onEnd: () => btn && setSpeakerState(btn, false) });
+  if (status === 'unsupported') {
+    statusEl.textContent = t('voice.unsupported');
+    return;
+  }
+  if (btn) setSpeakerState(btn, true);
+  if (status === 'no_voice') statusEl.textContent = t('voice.no_voice');
+}
+
+// Every answer gets its own speaker, so an older reply can be replayed
+// without asking again.
+function addSpeaker(card) {
+  if (!voiceSupported()) return;
+  const btn = el('button', 'ask-speak');
+  btn.type = 'button';
+  btn.innerHTML = speakerIcon(false);
+  btn.setAttribute('aria-label', t('voice.speak'));
+  btn.addEventListener('click', () => {
+    if (btn.classList.contains('on') && isSpeaking()) {
+      stopSpeaking();
+      setSpeakerState(btn, false);
+      return;
+    }
+    // Any other card mid-sentence goes quiet first.
+    logEl.querySelectorAll('.ask-speak').forEach((b) => setSpeakerState(b, false));
+    speakCard(card);
+  });
+  card.appendChild(btn);
 }
 
 function greet() {
@@ -338,7 +444,7 @@ function buildPanel() {
   const chips = el('div', 'ask-chips');
   for (const key of ['ask.chip.safe', 'ask.chip.when', 'ask.chip.where']) {
     const c = el('button', 'ask-chip', t(key));
-    c.addEventListener('click', () => ask(t(key)));
+    c.onclick = () => ask(t(key)); // onclick, not addEventListener: relabelPanel() reassigns it
     chips.appendChild(c);
   }
 
@@ -372,13 +478,38 @@ function buildPanel() {
   statusEl = el('div', 'ask-mic-status');
 
   p.append(head, logEl, chips, form, statusEl, el('div', 'ask-disclaimer', t('ask.disclaimer')));
+  builtLocale = getLocale();
   panel.appendChild(p);
   panel.addEventListener('click', (e) => { if (e.target === panel) closeAsk(); });
   document.body.appendChild(panel);
 }
 
+// The panel's own labels are written once at build time, but the language
+// picker can change afterwards — leaving a Hindi header above English
+// answers. Rewrite them on open rather than rebuilding, so the conversation
+// so far survives the switch.
+function relabelPanel() {
+  if (!panel || builtLocale === getLocale()) return;
+  panel.querySelector('.ask-title').textContent = t('ask.title');
+  panel.querySelector('.ask-sub').textContent = t('ask.subtitle');
+  panel.querySelector('.ask-disclaimer').textContent = t('ask.disclaimer');
+  panel.querySelector('.ask-send').textContent = t('ask.send');
+  inputEl.placeholder = t('ask.placeholder');
+  const chipKeys = ['ask.chip.safe', 'ask.chip.when', 'ask.chip.where'];
+  panel.querySelectorAll('.ask-chip').forEach((c, i) => {
+    c.textContent = t(chipKeys[i]);
+    c.onclick = () => ask(t(chipKeys[i]));
+  });
+  panel.querySelector('.ask-mic')?.setAttribute('aria-label', t('ask.mic'));
+  panel.querySelectorAll('.ask-speak').forEach((b) => {
+    b.setAttribute('aria-label', t(b.classList.contains('on') ? 'voice.stop' : 'voice.speak'));
+  });
+  builtLocale = getLocale();
+}
+
 export function openAsk() {
   if (!panel) buildPanel();
+  relabelPanel();
   panel.hidden = false;
   if (!greeted) greet();
   scrollLog();
@@ -387,11 +518,13 @@ export function openAsk() {
 
 export function closeAsk() {
   stopVoice(); // never leave the mic live behind a dismissed panel
+  stopSpeaking(); // and never keep talking to a closed panel
   if (panel) panel.hidden = true;
 }
 
 export function mountAsk(provider) {
   getContext = provider;
+  warmVoices();
   if (fab) return;
   fab = el('button', 'ask-fab');
   fab.setAttribute('aria-label', t('ask.title'));

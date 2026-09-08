@@ -777,3 +777,16 @@ input{font-family:inherit}
   background:#171A1C;color:#F5F4EF;font-size:12.5px;font-weight:600;
 }
 .location-sub.stale{color:var(--warn);font-weight:600}
+.ask-speak{
+  display:flex;align-items:center;justify-content:center;
+  width:32px;height:32px;margin-top:10px;border-radius:10px;
+  background:rgba(23,26,28,.05);border:1px solid rgba(23,26,28,.1);color:var(--ink-secondary);
+  transition:background .15s, color .15s;touch-action:manipulation;
+}
+.ask-speak svg{width:16px;height:16px}
+.ask-speak:active{transform:scale(.93)}
+.ask-speak.on{background:var(--info);border-color:var(--info);color:#fff}
+.ask-city-note{
+  margin-bottom:8px;padding:6px 9px;border-radius:9px;font-size:11px;line-height:1.4;
+  background:rgba(44,110,168,.09);border:1px solid rgba(44,110,168,.18);color:#245A88;
+}

@@ -84,6 +84,13 @@ registerEntries({
   'ask.weather.tomorrow': { en: 'Tomorrow in {{place}}: rain peaks at {{rain}}%, gusts to {{gust}} km/h, feels-like high {{max}}°C.', hi: 'कल {{place}} में: बारिश की अधिकतम संभावना {{rain}}%, झोंके {{gust}} किमी/घंटा तक, अधिकतम महसूस {{max}}°C।', bn: 'আগামীকাল {{place}}-এ: বৃষ্টির সর্বোচ্চ সম্ভাবনা {{rain}}%, দমকা হাওয়া {{gust}} কিমি/ঘণ্টা, সর্বোচ্চ অনুভূত {{max}}°C।', ta: 'நாளை {{place}}-இல்: மழை வாய்ப்பு உச்சம் {{rain}}%, காற்று {{gust}} கி.மீ/மணி வரை, அதிகபட்ச உணர்வு {{max}}°C.' },
   'ask.guess_hint': { en: 'I matched this to your current persona. Name the activity — trek, run, beach, field work, commute — for a sharper answer.', hi: 'मैंने इसे आपकी मौजूदा पर्सोना से जोड़ा है। बेहतर जवाब के लिए गतिविधि का नाम लें — ट्रेक, दौड़, समुद्र तट, खेत का काम, आवाजाही।', bn: 'আমি এটি আপনার বর্তমান পার্সোনার সঙ্গে মিলিয়েছি। আরও নির্দিষ্ট উত্তরের জন্য কাজের নাম বলুন — ট্রেক, দৌড়, সৈকত, মাঠের কাজ, যাতায়াত।', ta: 'இதை உங்கள் தற்போதைய பர்சோனாவுடன் பொருத்தினேன். துல்லியமான பதிலுக்கு செயலைக் குறிப்பிடுங்கள் — மலையேற்றம், ஓட்டம், கடற்கரை, வயல் வேலை, பயணம்.' },
 
+  'ask.ans.gear_yes': { en: 'Yes — carry an umbrella. Rain reaches {{rain}}% in {{place}} over the next 12 hours.', hi: 'हाँ — छाता ले जाइए। अगले 12 घंटों में {{place}} में बारिश की संभावना {{rain}}% तक है।', bn: 'হ্যাঁ — ছাতা নিন। আগামী ১২ ঘণ্টায় {{place}}-এ বৃষ্টির সম্ভাবনা {{rain}}% পর্যন্ত।', ta: 'ஆம் — குடை எடுத்துச் செல்லுங்கள். அடுத்த 12 மணி நேரத்தில் {{place}}-இல் மழை வாய்ப்பு {{rain}}% வரை.' },
+  'ask.ans.gear_maybe': { en: 'Probably not needed, but rain touches {{rain}}% in {{place}} — a light one would not hurt.', hi: 'शायद ज़रूरत न पड़े, पर {{place}} में बारिश की संभावना {{rain}}% तक जाती है — हल्का छाता रख लें तो बेहतर।', bn: 'সম্ভবত দরকার হবে না, তবে {{place}}-এ বৃষ্টির সম্ভাবনা {{rain}}% ছোঁয় — হালকা একটা রাখলে ক্ষতি নেই।', ta: 'தேவைப்படாமல் இருக்கலாம், ஆனால் {{place}}-இல் மழை வாய்ப்பு {{rain}}% வரை செல்கிறது — இலகுவான ஒன்றை வைத்திருப்பது நல்லது.' },
+  'ask.ans.gear_no': { en: 'No umbrella needed — rain stays at {{rain}}% in {{place}} for the next 12 hours.', hi: 'छाते की ज़रूरत नहीं — अगले 12 घंटों में {{place}} में बारिश की संभावना सिर्फ़ {{rain}}% है।', bn: 'ছাতার দরকার নেই — আগামী ১২ ঘণ্টায় {{place}}-এ বৃষ্টির সম্ভাবনা মাত্র {{rain}}%।', ta: 'குடை தேவையில்லை — அடுத்த 12 மணி நேரத்தில் {{place}}-இல் மழை வாய்ப்பு {{rain}}% மட்டுமே.' },
+  'ask.gear.sun': { en: 'Sunscreen is the thing to carry — UV peaks at {{uv}}.', hi: 'सनस्क्रीन ज़रूर रखें — यूवी {{uv}} तक पहुँचता है।', bn: 'সানস্ক্রিন সঙ্গে রাখুন — ইউভি {{uv}} পর্যন্ত ওঠে।', ta: 'சன்ஸ்கிரீன் எடுத்துச் செல்லுங்கள் — புற ஊதா {{uv}} வரை உயர்கிறது.' },
+  'ask.city.switched': { en: 'Showing {{place}}, from your question.', hi: 'आपके सवाल के अनुसार {{place}} दिखाया जा रहा है।', bn: 'আপনার প্রশ্ন অনুযায়ী {{place}} দেখানো হচ্ছে।', ta: 'உங்கள் கேள்விப்படி {{place}} காட்டப்படுகிறது.' },
+  'ask.city.notfound': { en: 'Could not find "{{name}}" — answering for {{place}} instead.', hi: '"{{name}}" नहीं मिला — इसके बजाय {{place}} का जवाब दे रहे हैं।', bn: '"{{name}}" পাওয়া গেল না — বদলে {{place}}-এর উত্তর দিচ্ছি।', ta: '"{{name}}" கிடைக்கவில்லை — அதற்குப் பதிலாக {{place}}-க்குப் பதில் அளிக்கிறேன்.' },
+
   'ask.ans.time': { en: 'The best stretch for {{act}} in {{place}} is {{win}}.', hi: '{{place}} में {{act}} के लिए सबसे अच्छा समय {{win}} है।', bn: '{{place}}-এ {{act}}-এর জন্য সেরা সময় {{win}}।', ta: '{{place}}-இல் {{act}}-க்கு சிறந்த நேரம் {{win}}.' },
   'ask.ans.time_none': { en: 'No clear window opens for {{act}} in {{place}} over the next two days.', hi: 'अगले दो दिनों में {{place}} में {{act}} के लिए कोई साफ़ मौक़ा नहीं है।', bn: 'আগামী দু\'দিনে {{place}}-এ {{act}}-এর জন্য পরিষ্কার কোনও সুযোগ নেই।', ta: 'அடுத்த இரண்டு நாட்களில் {{place}}-இல் {{act}}-க்கு தெளிவான வாய்ப்பு இல்லை.' },
   'ask.ans.forecast': { en: '{{place}} right now: {{cond}}, {{temp}}°C, feels {{feels}}°C.', hi: '{{place}} अभी: {{cond}}, {{temp}}°C, महसूस {{feels}}°C।', bn: '{{place}} এখন: {{cond}}, {{temp}}°C, অনুভূত {{feels}}°C।', ta: '{{place}} இப்போது: {{cond}}, {{temp}}°C, உணர்வு {{feels}}°C.' },
@@ -132,6 +139,7 @@ const INTENT_WORDS = {
   alternatives: ['where else', 'alternative', 'instead', 'somewhere else', 'other place', 'another place', 'different place', 'nearby place', 'where can i go', 'suggest a place', 'kahan jau', 'kaha jau', 'kahan jaye', 'kahan jaun', 'kaha jaun', 'kahan ja', 'dusri jagah', 'doosri jagah', 'aur kahan', 'koi aur jagah', 'kahi aur', 'kahin aur', 'और कहाँ', 'दूसरी जगह', 'कहीं और', 'विकल्प', 'बिकल्प', 'বিকল্প', 'আর কোথায়', 'অন্য জায়গা', 'অন্য কোথাও', 'வேறு எங்கு', 'வேறு இடம்', 'மாற்று'],
   best_time: ['best time', 'when should', 'what time', 'when can', 'good time', 'right time', 'best hour', 'when to go', 'kab jau', 'kab jana', 'kab jaun', 'kaunsa time', 'kaun sa time', 'kitne baje', 'kab nikl', 'kab nikal', 'sahi time', 'sahi samay', 'time kya', 'सही समय', 'कब जाऊँ', 'कब जाना', 'कितने बजे', 'कौन सा समय', 'সেরা সময়', 'কখন যাব', 'কটার সময়', 'சிறந்த நேரம்', 'எப்போது', 'எத்தனை மணி'],
   safe: ['safe', 'safety', 'risky', 'risk', 'danger', 'should i', 'can i go', 'can i', 'is it ok', 'ok to', 'suraksh', 'safe hai', 'safe he', 'jana chahiye', 'jaun ya', 'jau ya', 'jana thik', 'thik rahega', 'theek rahega', 'sahi rahega', 'chalega kya', 'सुरक्षित', 'ख़तरा', 'खतरा', 'जाना चाहिए', 'ठीक रहेगा', 'নিরাপদ', 'বিপদ', 'যাওয়া উচিত', 'ঠিক হবে', 'பாதுகாப்ப', 'ஆபத்து', 'போகலாமா', 'சரியாக இருக்குமா'],
+  gear: ['umbrella', 'raincoat', 'rain coat', 'jacket', 'sunscreen', 'what should i wear', 'what to wear', 'carry', 'take with me', 'chhata', 'chata', 'chhatri', 'barsati', 'kya pehnu', 'kya le jau', 'kya lekar', 'saath le', 'छाता', 'छतरी', 'रेनकोट', 'क्या पहनूँ', 'क्या ले जाऊँ', 'ছাতা', 'রেনকোট', 'কী নেব', 'குடை', 'மழைக்கோட்', 'என்ன எடுத்துச்'],
   forecast: ['weather', 'forecast', 'rain', 'raining', 'temperature', 'temp', 'hot', 'cold', 'humid', 'wind', 'how is', 'what is the', 'mausam', 'mosam', 'barish', 'baarish', 'barsat', 'garmi', 'thand', 'thandi', 'hawa', 'dhoop', 'kaisa hai', 'kaisa rahega', 'kaisa mausam', 'मौसम', 'बारिश', 'तापमान', 'गर्मी', 'ठंड', 'धूप', 'कैसा', 'আবহাওয়া', 'বৃষ্টি', 'তাপমাত্রা', 'গরম', 'ঠান্ডা', 'কেমন', 'வானிலை', 'மழை', 'வெப்பநிலை', 'குளிர்', 'எப்படி'],
 };
 
@@ -171,7 +179,7 @@ export function parseIntent(raw, fallbackPersona) {
   let intent = null;
   // Order matters: "where else can I go" also contains "go", so the more
   // specific alternatives/best-time checks run before the generic ones.
-  for (const key of ['alternatives', 'best_time', 'safe', 'forecast']) {
+  for (const key of ['alternatives', 'gear', 'best_time', 'safe', 'forecast']) {
     if (matchAny(text, INTENT_WORDS[key])) { intent = key; break; }
   }
   let activity = null;
@@ -198,6 +206,37 @@ export function parseIntent(raw, fallbackPersona) {
     activity: activity || PERSONA_ACTIVITY[fallbackPersona] || 'travel',
     when,
   };
+}
+
+// Words that follow "in"/"at" without being a place, so "rain in the
+// morning" is not mistaken for a city called "the morning".
+const NOT_A_PLACE = new Set(['the', 'my', 'this', 'that', 'morning', 'afternoon', 'evening',
+  'night', 'today', 'tomorrow', 'general', 'summer', 'winter', 'monsoon', 'time', 'hour',
+  'hours', 'minutes', 'india', 'here', 'town', 'city', 'area', 'future', 'a', 'an']);
+
+// Extracts a place from phrasings like "weather in Mumbai", "Mumbai ka
+// mausam", "Pune mein barish". Returns the raw phrase; the caller geocodes
+// it, so any city the search box can find works here too, with no second
+// list to keep in sync.
+export function extractPlace(raw) {
+  const text = (raw || '').trim();
+  if (!text) return null;
+
+  // English: after in / at / for / around
+  let m = text.match(/\b(?:in|at|for|around|near)\s+([A-Za-z][A-Za-z\s.'-]{1,30}?)\s*(?:\?|$|,|\btoday\b|\btomorrow\b|\bnow\b|\bthis\b)/i);
+  // Hinglish/Hindi: "<place> ka mausam", "<place> mein barish", "<place> में"
+  if (!m) m = text.match(/([A-Za-z][A-Za-z\s.'-]{1,30}?)\s+(?:ka|ki|ke|mein|me|men|में|का|की|के)\b/i);
+  if (!m) return null;
+
+  const phrase = m[1].trim().replace(/\s+/g, ' ');
+  if (phrase.length < 3) return null;
+  const words = phrase.toLowerCase().split(' ');
+  if (words.every((w) => NOT_A_PLACE.has(w))) return null;
+  // Trim leading filler ("the weather in the Mumbai area" -> "Mumbai")
+  while (words.length > 1 && NOT_A_PLACE.has(words[0])) words.shift();
+  while (words.length > 1 && NOT_A_PLACE.has(words[words.length - 1])) words.pop();
+  const cleaned = words.join(' ');
+  return NOT_A_PLACE.has(cleaned) ? null : cleaned;
 }
 
 // ---------- hazard scoring ----------

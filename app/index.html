@@ -14,6 +14,23 @@
 <link rel="apple-touch-icon" href="./assets/icon-180.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32.png">
 <link rel="icon" type="image/svg+xml" href="./assets/icon.svg">
+<script>
+/* Request only the font scripts this viewer actually needs. Runs inline and
+   before the stylesheet so the request starts in the first parse, and reads
+   the same localStorage key i18n.js persists the locale under. */
+(function () {
+  var loc = 'en';
+  try { loc = (JSON.parse(localStorage.getItem('mausam.state.v1')) || {}).locale || 'en'; } catch (e) {}
+  var fams = ['Noto+Sans:wght@300;400;500;600;700', 'Noto+Serif+Devanagari:wght@500;600'];
+  if (loc === 'bn') fams.push('Noto+Sans+Bengali:wght@400;500;600;700');
+  if (loc === 'ta') fams.push('Noto+Sans+Tamil:wght@400;500;600;700');
+  var l = document.createElement('link');
+  l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=' + fams.join('&family=') + '&display=swap';
+  document.head.appendChild(l);
+  document.documentElement.lang = loc;
+})();
+</script>
 <link rel="stylesheet" href="./css/styles.css">
 </head>
 <body>

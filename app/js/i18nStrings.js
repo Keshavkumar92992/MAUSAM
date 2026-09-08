@@ -36,6 +36,7 @@ registerEntries({
   'home.needs_https': { en: 'Location needs HTTPS (unavailable here)', hi: 'लोकेशन के लिए HTTPS ज़रूरी है (यहाँ उपलब्ध नहीं)', bn: 'লোকেশনের জন্য HTTPS প্রয়োজন (এখানে উপলব্ধ নয়)', ta: 'இருப்பிடத்திற்கு HTTPS தேவை (இங்கு கிடைக்கவில்லை)' },
   'home.popular_stations': { en: 'POPULAR MET STATIONS', hi: 'लोकप्रिय मौसम केंद्र', bn: 'জনপ্রিয় আবহাওয়া কেন্দ্র', ta: 'பிரபலமான வானிலை நிலையங்கள்' },
   'home.no_matching_stations': { en: 'No matching stations found', hi: 'कोई मेल खाता केंद्र नहीं मिला', bn: 'কোনো মিল পাওয়া যায়নি', ta: 'பொருந்தும் நிலையங்கள் இல்லை' },
+  'home.search_unavailable': { en: 'City lookup is unreachable right now — check your connection, or pick a station above.', hi: 'शहर खोज सेवा अभी उपलब्ध नहीं है — कनेक्शन देखें, या ऊपर से कोई केंद्र चुनें।', bn: 'শহর খোঁজার পরিষেবা এখন অমিল — সংযোগ দেখুন, বা উপর থেকে একটি কেন্দ্র বেছে নিন।', ta: 'நகரத் தேடல் சேவை இப்போது கிடைக்கவில்லை — இணைப்பைச் சரிபார்க்கவும், அல்லது மேலே ஒரு நிலையத்தைத் தேர்வு செய்யவும்.' },
   'home.for_you': {
     en: 'For you · {{persona}}',
     hi: 'आपके लिए · {{persona}}',
@@ -53,7 +54,8 @@ registerEntries({
   'home.outlook_subtitle': { en: 'Rain probability', hi: 'बारिश की संभावना', bn: 'বৃষ্টির সম্ভাবনা', ta: 'மழை வாய்ப்பு' },
   'home.footer_dept': { en: 'India Meteorological Department', hi: 'भारत मौसम विज्ञान विभाग', bn: 'ভারতীয় আবহাওয়া বিভাগ', ta: 'இந்திய வானிலை ஆய்வுத் துறை' },
   'home.footer_ministry': { en: 'Ministry of Earth Sciences, Government of India', hi: 'पृथ्वी विज्ञान मंत्रालय, भारत सरकार', bn: 'আর্থ সায়েন্স মন্ত্রণালয়, ভারত সরকার', ta: 'புவி அறிவியல் அமைச்சகம், இந்திய அரசு' },
-  'home.retry_hint': { en: 'IMD feed unavailable — showing last known state.\nPull down to retry.', hi: 'IMD फ़ीड उपलब्ध नहीं — अंतिम ज्ञात स्थिति दिखाई जा रही है।\nपुनः प्रयास के लिए नीचे खींचें।', bn: 'IMD ফিড উপলব্ধ নয় — শেষ জানা অবস্থা দেখানো হচ্ছে।\nপুনরায় চেষ্টা করতে নিচে টানুন।', ta: 'IMD ஊட்டம் கிடைக்கவில்லை — கடைசியாக அறியப்பட்ட நிலை காட்டப்படுகிறது.\nமீண்டும் முயற்சிக்க கீழே இழுக்கவும்.' },
+  'home.retry_hint': { en: 'Could not reach the weather service just now.', hi: 'अभी मौसम सेवा से संपर्क नहीं हो पाया।', bn: 'এই মুহূর্তে আবহাওয়া পরিষেবায় পৌঁছনো গেল না।', ta: 'இப்போது வானிலை சேவையை அணுக முடியவில்லை.' },
+  'home.retry_btn': { en: 'Try again', hi: 'फिर कोशिश करें', bn: 'আবার চেষ্টা করুন', ta: 'மீண்டும் முயற்சி' },
 
   // ---------- Data-freshness label ----------
   'fresh.just_now': { en: 'updated just now', hi: 'अभी अपडेट हुआ', bn: 'এইমাত্র আপডেট হয়েছে', ta: 'இப்போது புதுப்பிக்கப்பட்டது' },
@@ -320,6 +322,22 @@ registerEntries({
   'cond.thunderstorm': { en: 'Thunderstorm', hi: 'आंधी-तूफ़ान', bn: 'বজ্রঝড়', ta: 'இடிமின்னல் புயல்' },
   'cond.cloudy': { en: 'Cloudy', hi: 'बादल', bn: 'মেঘলা', ta: 'மேகமூட்டம்' },
 
+  // ---------- Saved-destination notes (travel.js) ----------
+  'travel.note_rain': { en: 'Carry a raincoat — {{v}}% rain chance', hi: 'रेनकोट साथ रखें — बारिश की {{v}}% संभावना', bn: 'রেনকোট সঙ্গে নিন — বৃষ্টির {{v}}% সম্ভাবনা', ta: 'மழைக்கோட் எடுத்துச் செல்லுங்கள் — மழைக்கு {{v}}% வாய்ப்பு' },
+  'travel.note_fine': { en: '{{condition}}, pleasant conditions', hi: '{{condition}}, सुहावना मौसम', bn: '{{condition}}, মনোরম আবহাওয়া', ta: '{{condition}}, இதமான வானிலை' },
+  'travel.unavailable': { en: 'Unavailable', hi: 'उपलब्ध नहीं', bn: 'পাওয়া যাচ্ছে না', ta: 'கிடைக்கவில்லை' },
+
+  // ---------- Mocked beach/pollen values (mock.js) ----------
+  'val.pollen_grass_parth': { en: 'Grass, Parthenium', hi: 'घास, गाजर घास', bn: 'ঘাস, পার্থেনিয়াম', ta: 'புல், பார்த்தீனியம்' },
+  'val.pollen_grass': { en: 'Grass', hi: 'घास', bn: 'ঘাস', ta: 'புல்' },
+  'val.pollen_low': { en: 'Low count', hi: 'कम मात्रा', bn: 'কম মাত্রা', ta: 'குறைந்த அளவு' },
+  'val.flag_green': { en: 'Green', hi: 'हरा', bn: 'সবুজ', ta: 'பச்சை' },
+  'val.flag_yellow': { en: 'Yellow', hi: 'पीला', bn: 'হলুদ', ta: 'மஞ்சள்' },
+  'val.flag_red': { en: 'Red', hi: 'लाल', bn: 'লাল', ta: 'சிவப்பு' },
+  'val.rip_low': { en: 'Low', hi: 'कम', bn: 'কম', ta: 'குறைவு' },
+  'val.rip_moderate': { en: 'Moderate', hi: 'मध्यम', bn: 'মাঝারি', ta: 'மிதமான' },
+  'val.rip_high': { en: 'High', hi: 'अधिक', bn: 'বেশি', ta: 'அதிகம்' },
+
   'val.feels_like': { en: 'Feels like {{temp}}°', hi: 'महसूस {{temp}}°', bn: 'অনুভূত {{temp}}°', ta: 'உணரப்படும் {{temp}}°' },
   'val.hi_lo_humidity': { en: 'H {{hi}}°&nbsp; L {{lo}}° &nbsp;·&nbsp; Humidity {{hum}}%', hi: 'अधि {{hi}}°&nbsp; न्यून {{lo}}° &nbsp;·&nbsp; नमी {{hum}}%', bn: 'সর্বো {{hi}}°&nbsp; সর্বনিম্ন {{lo}}° &nbsp;·&nbsp; আর্দ্রতা {{hum}}%', ta: 'உயர் {{hi}}°&nbsp; தாழ் {{lo}}° &nbsp;·&nbsp; ஈரப்பதம் {{hum}}%' },
 
@@ -336,9 +354,6 @@ registerEntries({
   'val.ml_per_hour': { en: '+{{n}} ml per hour', hi: '+{{n}} मिली प्रति घंटा', bn: '+{{n}} মিলি প্রতি ঘণ্টা', ta: '+{{n}} மிலி ஒரு மணிக்கு' },
   'val.normal_intake': { en: 'Normal', hi: 'सामान्य', bn: 'স্বাভাবিক', ta: 'சாதாரண' },
   'val.standard_intake': { en: 'Standard intake', hi: 'सामान्य सेवन', bn: 'স্বাভাবিক গ্রহণ', ta: 'இயல்பான உட்கொள்ளல்' },
-  'val.calm': { en: 'Calm', hi: 'शांत', bn: 'শান্ত', ta: 'அமைதி' },
-  'val.choppy': { en: 'Choppy', hi: 'उथल-पुथल', bn: 'উত্তাল', ta: 'கொந்தளிப்பு' },
-  'val.rough': { en: 'Rough', hi: 'खुरदुरा', bn: 'রুক্ষ', ta: 'கரடுமுரடான' },
   'val.visibility_km': { en: 'Visibility {{km}} km', hi: 'दृश्यता {{km}} किमी', bn: 'দৃশ্যমানতা {{km}} কিমি', ta: 'பார்வைத் தூரம் {{km}} கிமீ' },
   'val.condition_in': { en: '{{condition}} in {{city}}', hi: '{{city}} में {{condition}}', bn: '{{city}}-এ {{condition}}', ta: '{{city}}-இல் {{condition}}' },
   'val.add_destination': { en: 'Add a destination below', hi: 'नीचे एक गंतव्य जोड़ें', bn: 'নিচে একটি গন্তব্য যোগ করুন', ta: 'கீழே ஒரு இலக்கைச் சேர்' },

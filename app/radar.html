@@ -9,9 +9,30 @@
 <link rel="apple-touch-icon" href="./assets/icon-180.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32.png">
 <link rel="icon" type="image/svg+xml" href="./assets/icon.svg">
+<script>
+/* Request only the font scripts this viewer actually needs. Runs inline and
+   before the stylesheet so the request starts in the first parse, and reads
+   the same localStorage key i18n.js persists the locale under. */
+(function () {
+  var loc = 'en';
+  try { loc = (JSON.parse(localStorage.getItem('mausam.state.v1')) || {}).locale || 'en'; } catch (e) {}
+  var fams = ['Noto+Sans:wght@300;400;500;600;700', 'Noto+Serif+Devanagari:wght@500;600'];
+  if (loc === 'bn') fams.push('Noto+Sans+Bengali:wght@400;500;600;700');
+  if (loc === 'ta') fams.push('Noto+Sans+Tamil:wght@400;500;600;700');
+  var l = document.createElement('link');
+  l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=' + fams.join('&family=') + '&display=swap';
+  document.head.appendChild(l);
+  document.documentElement.lang = loc;
+})();
+</script>
 <link rel="stylesheet" href="./css/styles.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<!-- defer: without it these two block HTML parsing, so on a phone the whole
+     radar screen stays blank until ~300 KB of map libraries has arrived and
+     the page feels like it ignored your tap. Deferred classic scripts still
+     run before the module below, in document order. -->
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
 <style>
   body{background:#0C1622}
   .app-shell.dark{background:#0C1622;box-shadow:0 35px 80px -10px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.12), 0 0 0 8px #131E2C}
@@ -27,7 +48,10 @@
   .radar-back:hover{background:rgba(255,255,255,.1);color:#fff}
   .radar-sub{font-size:11.5px;color:rgba(255,255,255,.6);margin-top:5px}
   .layer-chips{display:flex;gap:8px;overflow-x:auto;padding:2px 20px 12px}
-  .layer-chip{flex:none;padding:8px 14px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:rgba(255,255,255,.72);transition:all .18s}
+  /* min-height + centring lifts these to a comfortable touch target; at the
+     old 34px they were easy to miss with a thumb. */
+  .layer-chip{flex:none;display:flex;align-items:center;min-height:42px;padding:0 15px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:rgba(255,255,255,.72);transition:all .18s;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+  .layer-chip:active{transform:scale(.95)}
   .layer-chip:hover{background:rgba(255,255,255,.14);color:#fff}
   .layer-chip.on{background:#F5F4EF;color:#0C1622;border-color:#F5F4EF}
   .map-panel{position:relative;flex:1;min-height:420px;margin:0 14px;border-radius:24px;overflow:hidden;background:radial-gradient(120% 90% at 50% 10%,#16283C,#0A121C 70%);border:1px solid rgba(255,255,255,.10)}

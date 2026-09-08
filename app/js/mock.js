@@ -19,7 +19,10 @@ export function mockedForCity(city, weather) {
 
   return {
     pollen_index: pollenBase,
-    pollen_note: pollenBase >= 5 ? 'Grass, Parthenium' : pollenBase >= 3 ? 'Grass' : 'Low count',
+    // A key, not a sentence: this module has no business holding display
+    // text, and the English strings it used to return showed up untranslated
+    // in the pollen tile in every other language.
+    pollen_note_key: pollenBase >= 5 ? 'val.pollen_grass_parth' : pollenBase >= 3 ? 'val.pollen_grass' : 'val.pollen_low',
     wave_height_m: waveHeight,
     sea_temp_c: seaTemp,
     safety_flag: safetyFlag,

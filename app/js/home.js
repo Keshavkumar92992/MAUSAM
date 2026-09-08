@@ -5,6 +5,9 @@ import { buildTravelData, addSavedCity } from './travel.js';
 import { loadState, saveState, fmtTime } from './utils.js';
 import { ICONS, renderBottomNav, renderStatusBar } from './icons.js';
 import { t, getLocale, setLocale, LOCALES } from './i18n.js';
+import { loadAstroEvents, loadAstroHistory, nextEvent, stripSubject, dueForPopup, markEventSeen,
+  renderAstroStrip, renderAstroModal, renderHistoryStrip, renderHistoryModal, wireAstroCard } from './astro.js';
+import { mountAsk, updateAskBadge } from './askUi.js';
 import './i18nStrings.js';
 
 // `top` is the framing decision (how far down into the photo the visible
@@ -72,8 +75,14 @@ const state = {
   searchOpen: false,
   searchResults: [],
   searchQuery: '',
+  searchFailed: false,
   fetchedAt: null,
   langOpen: false,
+  astroEvents: [],
+  astroHistory: [],
+  astroShown: null,
+  astroHistShown: null,
+  astroOpen: false,
 };
 
 const REFRESH_AFTER_MS = 10 * 60 * 1000;
@@ -101,8 +110,47 @@ async function init() {
   document.documentElement.lang = getLocale();
 
   render();
+  mountAsk(() => ({ metrics: state.metrics, city: state.city, persona: state.activePersona }));
   await loadWeather();
   startAutoRefresh();
+  initAstro();
+}
+
+// Runs after the weather is on screen so a sky-event modal never lands on
+// top of a loading skeleton.
+async function initAstro() {
+  const [events, history] = await Promise.all([loadAstroEvents(), loadAstroHistory()]);
+  state.astroEvents = events;
+  state.astroHistory = history;
+  const due = dueForPopup(state.astroEvents);
+  if (due) {
+    state.astroShown = due;
+    state.astroOpen = true;
+  }
+  render();
+}
+
+// The strip shows whichever of the two is worth the space today, so the
+// tap has to open whichever one it was showing.
+function openAstro() {
+  const subject = stripSubject(state.astroEvents, state.astroHistory);
+  if (!subject) return;
+  state.astroShown = subject.kind === 'event' ? subject.ev : null;
+  state.astroHistShown = subject.kind === 'history' ? subject.h : null;
+  state.astroOpen = true;
+  render();
+}
+
+function closeAstro() {
+  if (state.astroShown) markEventSeen(state.astroShown.id);
+  state.astroOpen = false;
+  render();
+}
+
+function astroStripHtml() {
+  const subject = stripSubject(state.astroEvents, state.astroHistory);
+  if (!subject) return '';
+  return subject.kind === 'history' ? renderHistoryStrip(subject.h) : renderAstroStrip(subject.ev);
 }
 
 // Weather used to be fetched exactly once per page load, so an app left
@@ -138,6 +186,7 @@ async function loadWeather({ silent = false } = {}) {
     state.fetchedAt = Date.now();
     state.status = 'ready';
     render();
+    updateAskBadge();
     state.travel = await buildTravelData(state.metrics.tempNow);
     render();
   } catch (err) {
@@ -187,8 +236,12 @@ async function onSearchInput(value) {
   searchDebounce = setTimeout(async () => {
     try {
       state.searchResults = await geocodeCity(value);
+      state.searchFailed = false;
     } catch {
+      // "No matching stations" would be a lie when the lookup service is
+      // simply unreachable — say which it is.
       state.searchResults = [];
+      state.searchFailed = true;
     }
     // render() replaces innerHTML, which recreates the <input> and
     // drops focus — on mobile that dismisses the keyboard after every
@@ -303,6 +356,9 @@ function render() {
     <div class="home-indicator"></div>
     ${state.searchOpen ? renderSearch() : ''}
     ${state.langOpen ? renderLangPicker() : ''}
+    ${state.astroOpen ? (state.astroHistShown
+      ? renderHistoryModal(state.astroHistShown, nextEvent(state.astroEvents))
+      : renderAstroModal(state.astroShown)) : ''}
   `;
 
   if (prevChipScroll) document.querySelector('.persona-scroll').scrollLeft = prevChipScroll;
@@ -351,7 +407,7 @@ function renderHeader(alert) {
             <span class="deg">${m ? m.tempNow : '--'}</span><span class="unit">°C</span>
           </div>
           ${m && m.precip_now_mm > 0 ? `<div class="raining-now"><span class="live-dot"></span>${t('home.raining_now', { mm: m.precip_now_mm })}</div>` : ''}
-          <div class="condition">${m ? `${m.conditionLabel} · ${t('val.feels_like', { temp: m.feelsLikeNow })}` : t('home.loading_conditions')}</div>
+          <div class="condition">${m ? `${t(m.conditionKey)} · ${t('val.feels_like', { temp: m.feelsLikeNow })}` : t('home.loading_conditions')}</div>
           <div class="minmax">${m ? t('val.hi_lo_humidity', { hi: m.tempMax, lo: m.tempMin, hum: m.humidityNow }) : ''}</div>
         </div>
         <div class="condition-icon ${iconClass}">
@@ -407,7 +463,14 @@ function renderSkeleton() {
 function renderError() {
   return `
     <div class="section-body">
-      <div class="error-card">${t('home.retry_hint')}</div>
+      <div class="error-card">
+        <div>${t('home.retry_hint')}</div>
+        <button id="btn-retry" class="retry-btn">${t('home.retry_btn')}</button>
+      </div>
+      ${/* Neither the sky event nor today's anniversary needs the weather
+            service, so they stay on screen when it is unreachable rather
+            than leaving the user with nothing but an error. */ ''}
+      ${astroStripHtml()}
     </div>
   `;
 }
@@ -458,6 +521,8 @@ function renderBody(personaDef) {
           <div class="guidance-body">${view.tip}</div>
         </div>
       </div>
+
+      ${astroStripHtml()}
 
       ${renderOutlook()}
 
@@ -523,7 +588,9 @@ function renderSearch() {
         </div>
 
         <div class="search-results">
-          ${state.searchQuery.length >= 2 && state.searchResults.length === 0 ? `<div class="search-empty">${t('home.no_matching_stations')}</div>` : ''}
+          ${state.searchQuery.length >= 2 && state.searchResults.length === 0
+            ? `<div class="search-empty">${t(state.searchFailed ? 'home.search_unavailable' : 'home.no_matching_stations')}</div>`
+            : ''}
           ${state.searchResults.map((r, i) => `
             <div class="search-result" data-idx="${i}">
               <div class="name">${r.name}</div>
@@ -584,6 +651,13 @@ function wireEvents() {
     el.addEventListener('click', () => selectPersona(el.dataset.persona));
   });
   document.getElementById('btn-save-dest')?.addEventListener('click', saveDestination);
+  document.getElementById('btn-retry')?.addEventListener('click', () => loadWeather());
+  document.getElementById('astro-strip')?.addEventListener('click', openAstro);
+  wireAstroCard();
+  document.getElementById('astro-ok')?.addEventListener('click', closeAstro);
+  document.getElementById('astro-overlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'astro-overlay') closeAstro();
+  });
 }
 
 init();

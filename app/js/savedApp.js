@@ -184,7 +184,7 @@ async function loadCities() {
     saved.map(async (c, i) => {
       try {
         const s = await fetchDestinationSummary(c.lat, c.lon);
-        state.cities[i] = { ...c, tempNow: s.tempNow, status: s.condition };
+        state.cities[i] = { ...c, tempNow: s.tempNow, status: t(s.conditionKey) };
       } catch {
         state.cities[i] = { ...c, tempNow: null, status: t('saved.unavailable') };
       }

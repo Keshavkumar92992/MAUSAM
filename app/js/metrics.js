@@ -62,6 +62,7 @@ export function buildMetrics({ forecast, air }, city) {
     tempNow: Math.round(cur.temperature_2m ?? 0),
     feelsLikeNow: Math.round(cur.apparent_temperature ?? cur.temperature_2m ?? 0),
     conditionLabel: condition.label,
+    conditionKey: condition.key,
     conditionIcon: condition.icon,
     tempMax: Math.round(daily.temperature_2m_max?.[0] ?? cur.temperature_2m ?? 0),
     tempMin: Math.round(daily.temperature_2m_min?.[0] ?? cur.temperature_2m ?? 0),

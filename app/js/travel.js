@@ -37,13 +37,13 @@ export async function buildTravelData(originTempNow) {
           name: c.name,
           tempNow: s.tempNow,
           condition: s.condition,
+          conditionKey: s.conditionKey,
           precipProbMax: s.precipProbMax,
           uvMax: s.uvMax,
-          note: s.precipProbMax > 50 ? `Carry a raincoat — ${s.precipProbMax}% rain chance` : `${s.condition}, pleasant conditions`,
           tone,
         };
       } catch {
-        return { name: c.name, tempNow: null, condition: '—', note: 'Unavailable', tone: 'info' };
+        return { name: c.name, tempNow: null, condition: '—', conditionKey: 'cond.clear', tone: 'info' };
       }
     })
   );

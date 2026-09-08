@@ -86,6 +86,14 @@ export function renderBottomNav(activeTab, alertCount = 0, isDark = false) {
   `;
 }
 
+// Delegated once per page: home.js re-renders the nav on every persona tap
+// and background refresh, so a listener bound to the elements themselves
+// would be thrown away and rebound constantly.
+document.addEventListener('pointerdown', (e) => {
+  const item = e.target.closest?.('a.nav-item');
+  if (item) item.classList.add('nav-pressed');
+}, { passive: true });
+
 export function renderStatusBar(isDark = false) {
   const now = new Date();
   const hours = now.getHours();

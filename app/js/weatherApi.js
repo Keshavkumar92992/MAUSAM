@@ -57,14 +57,33 @@ function matchIndianStates(query) {
     .map(([, place]) => ({ name: place.name, admin1: place.admin1, country: 'India', lat: place.lat, lon: place.lon }));
 }
 
+// Every request here needs a deadline. Open-Meteo's geocoder went dark for
+// minutes at a time during testing, and a bare fetch() has no timeout — the
+// search box just sat there forever with no result and no error, which reads
+// as "the app is broken" rather than "the lookup service is down".
+function fetchWithTimeout(url, ms = 8000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
+}
+
 export async function geocodeCity(query) {
   if (!query || query.trim().length < 2) return [];
   const stateMatches = matchIndianStates(query);
   const url = `${GEOCODE_BASE}?name=${encodeURIComponent(query.trim())}&count=6&language=en&format=json`;
-  const res = await fetch(url);
+  let res;
+  try {
+    res = await fetchWithTimeout(url, 7000);
+  } catch {
+    // Offline, blocked or timed out. The state table is bundled, so a
+    // search for a state name still resolves; anything else has to fail
+    // loudly enough for the UI to say so.
+    if (stateMatches.length) return stateMatches;
+    throw new Error('geocode unavailable');
+  }
   if (!res.ok) {
     if (stateMatches.length) return stateMatches;
-    throw new Error('geocode failed');
+    throw new Error('geocode unavailable');
   }
   const data = await res.json();
   const placeMatches = (data.results || []).map((r) => ({
@@ -97,10 +116,15 @@ export async function fetchWeatherBundle(lat, lon) {
     `${AIR_QUALITY_BASE}?latitude=${lat}&longitude=${lon}` +
     `&current=pm2_5&hourly=pm2_5&timezone=auto&forecast_days=1`;
 
-  const [forecastRes, airRes] = await Promise.all([fetch(forecastUrl), fetch(airUrl)]);
+  // Air quality is optional — a failure there must not cost the user their
+  // whole forecast, so it resolves to null rather than rejecting the pair.
+  const [forecastRes, airRes] = await Promise.all([
+    fetchWithTimeout(forecastUrl, 12000),
+    fetchWithTimeout(airUrl, 8000).catch(() => null),
+  ]);
   if (!forecastRes.ok) throw new Error('weather fetch failed');
   const forecast = await forecastRes.json();
-  const air = airRes.ok ? await airRes.json() : null;
+  const air = airRes && airRes.ok ? await airRes.json() : null;
 
   return { forecast, air };
 }
@@ -110,23 +134,42 @@ export async function fetchDestinationSummary(lat, lon) {
     `${FORECAST_BASE}?latitude=${lat}&longitude=${lon}` +
     `&current=temperature_2m,weather_code` +
     `&daily=precipitation_probability_max,uv_index_max&timezone=auto&forecast_days=1`;
-  const res = await fetch(url);
+  const res = await fetchWithTimeout(url, 8000);
   if (!res.ok) throw new Error('destination fetch failed');
   const data = await res.json();
   const condition = weatherCodeToCondition(data.current?.weather_code ?? 0);
   return {
     tempNow: Math.round(data.current?.temperature_2m ?? 0),
     condition: condition.label,
+    conditionKey: condition.key,
     precipProbMax: Math.round(data.daily?.precipitation_probability_max?.[0] ?? 0),
     uvMax: Math.round(data.daily?.uv_index_max?.[0] ?? 0),
   };
+}
+
+// Open-Meteo accepts comma-separated coordinate lists and answers with an
+// array, so the assistant can price up a dozen candidate destinations in
+// one request instead of a dozen. A single coordinate still comes back as
+// a bare object, hence the normalising wrap.
+export async function fetchMultiDaily(points) {
+  if (!points.length) return [];
+  const url =
+    `${FORECAST_BASE}?latitude=${points.map((p) => p.lat).join(',')}` +
+    `&longitude=${points.map((p) => p.lon).join(',')}` +
+    `&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,` +
+    `precipitation_probability_max,precipitation_sum,wind_gusts_10m_max,uv_index_max` +
+    `&timezone=auto&forecast_days=2&wind_speed_unit=kmh`;
+  const res = await fetchWithTimeout(url, 10000);
+  if (!res.ok) throw new Error('multi forecast failed');
+  const data = await res.json();
+  return Array.isArray(data) ? data : [data];
 }
 
 // Reverse geocode via BigDataCloud's free client-side endpoint (no API
 // key, CORS-friendly) — Open-Meteo's geocoder is forward-search only.
 export async function reverseGeocode(lat, lon) {
   const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`;
-  const res = await fetch(url);
+  const res = await fetchWithTimeout(url, 7000);
   if (!res.ok) throw new Error('reverse geocode failed');
   const data = await res.json();
   return {
@@ -169,15 +212,17 @@ export function getCurrentLocation() {
   });
 }
 
+// WMO weather codes -> i18n key + coarse icon family. `key` is what should
+// be rendered; `label` is the English fallback kept for logic that compares
+// conditions rather than displays them.
 export function weatherCodeToCondition(code) {
-  // WMO weather codes -> short label + coarse icon family
-  if (code === 0) return { label: 'Clear', icon: 'sun' };
-  if ([1, 2].includes(code)) return { label: 'Partly cloudy', icon: 'sun' };
-  if (code === 3) return { label: 'Overcast', icon: 'cloud' };
-  if ([45, 48].includes(code)) return { label: 'Haze', icon: 'cloud' };
-  if ([51, 53, 55, 56, 57].includes(code)) return { label: 'Drizzle', icon: 'rain' };
-  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { label: 'Rain', icon: 'rain' };
-  if ([71, 73, 75, 77, 85, 86].includes(code)) return { label: 'Snow', icon: 'rain' };
-  if ([95, 96, 99].includes(code)) return { label: 'Thunderstorm', icon: 'rain' };
-  return { label: 'Cloudy', icon: 'cloud' };
+  if (code === 0) return { key: 'cond.clear', label: 'Clear', icon: 'sun' };
+  if ([1, 2].includes(code)) return { key: 'cond.partly_cloudy', label: 'Partly cloudy', icon: 'sun' };
+  if (code === 3) return { key: 'cond.overcast', label: 'Overcast', icon: 'cloud' };
+  if ([45, 48].includes(code)) return { key: 'cond.haze', label: 'Haze', icon: 'cloud' };
+  if ([51, 53, 55, 56, 57].includes(code)) return { key: 'cond.drizzle', label: 'Drizzle', icon: 'rain' };
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { key: 'cond.rain', label: 'Rain', icon: 'rain' };
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return { key: 'cond.snow', label: 'Snow', icon: 'rain' };
+  if ([95, 96, 99].includes(code)) return { key: 'cond.thunderstorm', label: 'Thunderstorm', icon: 'rain' };
+  return { key: 'cond.cloudy', label: 'Cloudy', icon: 'cloud' };
 }

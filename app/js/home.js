@@ -80,6 +80,7 @@ const state = {
   errorKind: null,
   fetchedAt: null,
   langOpen: false,
+  theme: 'auto',
   astroEvents: [],
   astroHistory: [],
   astroShown: null,
@@ -109,6 +110,7 @@ async function init() {
   const saved = loadState();
   state.city = saved.city || DEFAULT_CITY;
   state.activePersona = saved.activePersona || 'health';
+  if (THEMES.includes(saved.theme)) state.theme = saved.theme;
   document.documentElement.lang = getLocale();
 
   render();
@@ -350,7 +352,55 @@ function alertInfo(m) {
   return null;
 }
 
-function skyGradientClass() {
+// ---------- theme ----------
+// 'auto' follows the sun at the selected location; the other two pin it.
+const THEMES = ['auto', 'light', 'dark'];
+
+// Night is decided by the location's own sunrise/sunset, which the forecast
+// already carries — a fixed "after 7 PM" rule would still be bright in a
+// Delhi June and hours late in December. Before the first fetch, and if the
+// feed ever omits them, fall back to a plain clock check rather than
+// guessing wrong in the dark.
+function isNightNow() {
+  const m = state.metrics;
+  const now = Date.now();
+  const rise = m?.sunrise ? Date.parse(m.sunrise) : NaN;
+  const set = m?.sunset ? Date.parse(m.sunset) : NaN;
+  if (Number.isFinite(rise) && Number.isFinite(set)) return now < rise || now >= set;
+  const h = new Date().getHours();
+  return h < 6 || h >= 19;
+}
+
+function themeIsDark() {
+  if (state.theme === 'dark') return true;
+  if (state.theme === 'light') return false;
+  return isNightNow();
+}
+
+function applyTheme() {
+  const dark = themeIsDark();
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  // Colours the phone's own status bar / URL chrome around the page.
+  document.querySelector('meta[name="theme-color"]')
+    ?.setAttribute('content', dark ? '#101825' : '#F5F4EF');
+  return dark;
+}
+
+function cycleTheme() {
+  state.theme = THEMES[(THEMES.indexOf(state.theme) + 1) % THEMES.length];
+  saveState({ theme: state.theme });
+  render();
+}
+
+function skyGradientClass(dark) {
+  if (dark) {
+    // Deep sky down into the page colour, so the gradient and the sheet
+    // below it never show a seam.
+    const h = new Date().getHours();
+    return h >= 4 && h < 6
+      ? 'linear-gradient(180deg,#243550 0%,#1B2740 40%,#151E2E 78%,#101825 100%)'
+      : 'linear-gradient(180deg,#16203A 0%,#141C30 42%,#121926 78%,#101825 100%)';
+  }
   const h = new Date().getHours();
   if (h >= 5 && h < 11) return 'linear-gradient(180deg,#B9D9F2 0%,#D7E7F2 42%,#EFEDE6 78%,#F5F4EF 100%)';
   if (h >= 11 && h < 17) return 'linear-gradient(180deg,#9EC9EC 0%,#CFE2EF 40%,#EEEDE5 78%,#F5F4EF 100%)';
@@ -364,6 +414,7 @@ function render() {
   const crop = PHOTO_CROP[persona];
   const tint = SCRIM_TINT[persona];
   const alert = state.metrics ? alertInfo(state.metrics) : null;
+  const dark = applyTheme();
 
   // root.innerHTML replaces the persona-chip row with a brand new element,
   // which resets its horizontal scroll to 0 — so scrolling right to reach
@@ -372,9 +423,9 @@ function render() {
   const prevChipScroll = document.querySelector('.persona-scroll')?.scrollLeft;
 
   root.innerHTML = `
-    ${renderStatusBar(false)}
+    ${renderStatusBar(dark)}
 
-    <div class="sky-gradient" style="background:${skyGradientClass()}"></div>
+    <div class="sky-gradient" style="background:${skyGradientClass(dark)}"></div>
     <div class="texture-glow"></div>
     <div class="texture-grain"></div>
 
@@ -383,9 +434,7 @@ function render() {
         <img src="./assets/${persona}.jpg" alt="${t(PERSONA_LABEL_KEY[persona])}">
       </div>
     </div>
-    <div class="hero-scrim" style="background:
-      linear-gradient(180deg,rgba(245,244,239,.22) 0%,rgba(245,244,239,.14) 50%,rgba(245,244,239,.55) 84%,rgba(245,244,239,.97) 100%),
-      linear-gradient(96deg,rgba(${tint},.88) 0%,rgba(${tint},.62) 36%,rgba(${tint},.06) 74%,rgba(${tint},0) 100%)"></div>
+    <div class="hero-scrim" style="background:${heroScrim(dark, tint)}"></div>
     <div class="hero-accent-bar" style="background:linear-gradient(90deg,${personaDef.accent_bar[0]},${personaDef.accent_bar[1]} 55%,${personaDef.accent_bar[2]})"></div>
 
     <div class="content">
@@ -394,7 +443,7 @@ function render() {
       <div class="content-sheet">
         ${state.status === 'ready' ? renderBody(personaDef) : state.status === 'error' ? renderError() : renderSkeleton()}
         ${renderFooter()}
-        ${renderBottomNav('home', alert ? 1 : 0, false)}
+        ${renderBottomNav('home', alert ? 1 : 0, dark)}
       </div>
     </div>
     <div class="home-indicator"></div>
@@ -426,6 +475,18 @@ function sizeHeroPhoto(crop) {
   wrapper.style.height = Math.round(wrapperH) + 'px';
 }
 
+// The photo stays; only what is laid over it changes. In dark the scrim
+// deepens towards the page colour instead of washing towards paper, and the
+// persona tint is dropped — those pastel washes read as haze at night.
+function heroScrim(dark, tint) {
+  if (dark) {
+    return 'linear-gradient(180deg,rgba(16,24,37,.42) 0%,rgba(16,24,37,.34) 46%,rgba(16,24,37,.78) 82%,rgba(16,24,37,.98) 100%),'
+      + 'linear-gradient(96deg,rgba(16,24,37,.72) 0%,rgba(16,24,37,.4) 40%,rgba(16,24,37,0) 78%)';
+  }
+  return 'linear-gradient(180deg,rgba(245,244,239,.22) 0%,rgba(245,244,239,.14) 50%,rgba(245,244,239,.55) 84%,rgba(245,244,239,.97) 100%),'
+    + `linear-gradient(96deg,rgba(${tint},.88) 0%,rgba(${tint},.62) 36%,rgba(${tint},.06) 74%,rgba(${tint},0) 100%)`;
+}
+
 function renderHeader(alert) {
   const m = state.metrics;
   const iconClass = m ? (m.conditionIcon === 'rain' ? 'rain' : m.conditionIcon === 'cloud' ? 'cloud' : '') : '';
@@ -434,6 +495,7 @@ function renderHeader(alert) {
       <div class="wordmark-row">
         <div class="wordmark"><span class="en">Mausam</span><span class="hi">मौसम</span></div>
         <div class="header-icons">
+          <button class="icon-btn" id="btn-theme" title="${t('theme.' + state.theme)}" aria-label="${t('theme.' + state.theme)}">${ICONS.theme('', 'currentColor', state.theme)}</button>
           <button class="icon-btn lang-btn" id="btn-lang" title="Language">${getLocale().toUpperCase()}</button>
           <button class="icon-btn" id="btn-search" title="Search city" aria-label="Search city">${ICONS.search()}</button>
         </div>
@@ -680,6 +742,7 @@ function wireEvents() {
     if (e.target.id === 'search-overlay') closeSearch();
   });
   document.getElementById('btn-geo')?.addEventListener('click', useCurrentLocation);
+  document.getElementById('btn-theme')?.addEventListener('click', cycleTheme);
   document.getElementById('btn-lang')?.addEventListener('click', toggleLang);
   document.getElementById('lang-close')?.addEventListener('click', toggleLang);
   document.getElementById('lang-overlay')?.addEventListener('click', (e) => {

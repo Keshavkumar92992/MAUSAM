@@ -13,6 +13,10 @@
 :lang(bn){font-family:'Noto Sans Bengali','Noto Sans',system-ui,sans-serif}
 :lang(ta){font-family:'Noto Sans Tamil','Noto Sans',system-ui,sans-serif}
 
+/* Two themes over one token set. The app flips to dark at the location's
+   real sunset rather than a fixed clock hour — a December evening in Delhi
+   is dark by 5:30 while June is still bright at 7, and a weather app of all
+   things should know the difference. home.js sets data-theme. */
 :root{
   --ink:#171A1C;
   --ink-secondary:rgba(23,26,28,.66);
@@ -21,10 +25,46 @@
   --card:#fff;
   --card-border:rgba(23,26,28,.07);
   --backdrop:#E7E5DF;
+  --glass:rgba(245,244,239,.88);   /* nav + chip rail, over the hero photo */
+  --panel:#fff;                    /* search / language sheets */
+  --chip:rgba(255,255,255,.9);
+  --chip-ink:rgba(23,26,28,.72);
+  --chip-border:rgba(23,26,28,.10);
+  --chip-on-bg:#171A1C;
+  --chip-on-ink:#fff;
+  --icon-btn:rgba(255,255,255,.66);
+  --icon-btn-hover:rgba(255,255,255,.95);
+  --cloud:rgba(255,255,255,.86);
   --ok:#2E7D5B;
   --warn:#C9772A;
   --bad:#C2452D;
   --info:#2C6EA8;
+}
+
+[data-theme="dark"]{
+  --ink:#EEF3FB;
+  --ink-secondary:rgba(238,243,251,.72);
+  --ink-tertiary:rgba(238,243,251,.58);
+  --page:#101825;
+  --card:#1A2634;
+  --card-border:rgba(255,255,255,.09);
+  --backdrop:#070C13;
+  --glass:rgba(16,24,37,.9);
+  --panel:#1A2634;
+  --chip:rgba(255,255,255,.10);
+  --chip-ink:rgba(238,243,251,.78);
+  --chip-border:rgba(255,255,255,.14);
+  --chip-on-bg:#EEF3FB;
+  --chip-on-ink:#101825;
+  --icon-btn:rgba(255,255,255,.12);
+  --icon-btn-hover:rgba(255,255,255,.2);
+  --cloud:rgba(226,235,247,.5);
+  /* Lifted off the light-theme values: the same greens and reds go muddy
+     and fail contrast against a dark card. */
+  --ok:#5FBF92;
+  --warn:#E8A45C;
+  --bad:#E8705C;
+  --info:#7FB2E5;
 }
 
 *{box-sizing:border-box}
@@ -161,11 +201,11 @@ input{font-family:inherit}
 .wordmark .hi{font-family:'Noto Serif Devanagari',serif;font-weight:500;font-size:15px;color:var(--ink-secondary)}
 .header-icons{display:flex;align-items:center;gap:8px}
 .icon-btn{
-  width:32px;height:32px;border-radius:16px;background:rgba(255,255,255,.66);
+  width:32px;height:32px;border-radius:16px;background:var(--icon-btn);
   border:1px solid rgba(23,26,28,.09);display:flex;align-items:center;justify-content:center;
   color:var(--ink);transition:background .15s;
 }
-.icon-btn:hover{background:rgba(255,255,255,.95)}
+.icon-btn:hover{background:var(--icon-btn-hover)}
 .lang-btn{width:auto;padding:0 10px;font-size:11px;font-weight:700;letter-spacing:.03em}
 .lang-panel{gap:2px}
 .lang-list{margin-top:4px}
@@ -205,8 +245,8 @@ input{font-family:inherit}
 
 .condition-icon{width:96px;height:96px;flex:none;position:relative}
 .condition-icon .sun{position:absolute;inset:14px;border-radius:50%;background:radial-gradient(circle at 34% 32%,#FFE9B0,#F2A93B 70%,#E0872A);box-shadow:0 0 34px rgba(242,169,59,.45)}
-.condition-icon .cloud-a{position:absolute;left:6px;right:0;bottom:20px;height:26px;border-radius:16px;background:rgba(255,255,255,.82);box-shadow:0 6px 16px rgba(23,26,28,.10)}
-.condition-icon .cloud-b{position:absolute;left:22px;bottom:32px;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.9)}
+.condition-icon .cloud-a{position:absolute;left:6px;right:0;bottom:20px;height:26px;border-radius:16px;background:var(--cloud);box-shadow:0 6px 16px rgba(23,26,28,.10)}
+.condition-icon .cloud-b{position:absolute;left:22px;bottom:32px;width:34px;height:34px;border-radius:50%;background:var(--cloud)}
 .condition-icon.rain .sun{background:radial-gradient(circle at 34% 32%,#DCE6EE,#8FA8BC 70%,#5F7C93);box-shadow:0 0 24px rgba(95,124,147,.35)}
 .condition-icon.cloud .sun{background:radial-gradient(circle at 34% 32%,#EDEFF1,#C9CFD4 70%,#9AA5AC);box-shadow:0 0 20px rgba(154,165,172,.3)}
 
@@ -220,11 +260,11 @@ input{font-family:inherit}
   flex:none;display:flex;align-items:center;gap:7px;padding:9px 14px;border-radius:999px;
   cursor:pointer;font-size:12.5px;font-weight:600;white-space:nowrap;user-select:none;
   transition:background .18s,color .18s,border-color .18s,transform .12s;
-  background:rgba(255,255,255,.9);color:rgba(23,26,28,.72);border:1px solid rgba(23,26,28,.10);
+  background:var(--chip);color:var(--chip-ink);border:1px solid var(--chip-border);
 }
 .persona-chip:active{transform:scale(.96)}
 .persona-chip .dot{width:6px;height:6px;border-radius:3px}
-.persona-chip.active{background:#171A1C;color:#fff;border-color:#171A1C}
+.persona-chip.active{background:var(--chip-on-bg);color:var(--chip-on-ink);border-color:var(--chip-on-bg)}
 
 .section-body{padding:4px 20px 0}
 .section-heading{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:11px}
@@ -277,7 +317,7 @@ input{font-family:inherit}
 .footer-note{
   font-size:10.5px;line-height:1.6;color:var(--ink-secondary);text-align:center;
   margin:16px 20px 8px;padding:10px 14px;border-radius:14px;
-  background:rgba(245,244,239,.82);backdrop-filter:blur(6px);
+  background:var(--glass);backdrop-filter:blur(6px);
   border:1px solid rgba(23,26,28,.06);
 }
 
@@ -287,7 +327,7 @@ input{font-family:inherit}
 .bottom-nav{
   position:fixed;bottom:0;left:50%;transform:translateX(-50%);
   width:402px;max-width:100vw;
-  background:rgba(245,244,239,.88);backdrop-filter:blur(16px);
+  background:var(--glass);backdrop-filter:blur(16px);
   border-top:1px solid rgba(23,26,28,.08);display:grid;grid-template-columns:repeat(4,1fr);
   padding:10px 8px 30px;z-index:30;
 }
@@ -332,7 +372,7 @@ input{font-family:inherit}
   display:flex;flex-direction:column;padding:54px 16px 20px;backdrop-filter:blur(4px);
 }
 .search-panel{
-  background:#fff;border-radius:24px;padding:18px 16px;max-height:80%;
+  background:var(--panel);border-radius:24px;padding:18px 16px;max-height:80%;
   display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 36px rgba(0,0,0,.25);
 }
 .search-input-row{display:flex;gap:10px;align-items:center}
@@ -340,7 +380,7 @@ input{font-family:inherit}
   flex:1;border:1px solid rgba(23,26,28,.15);border-radius:14px;padding:11px 14px;
   font-size:14px;outline:none;background:rgba(23,26,28,.02);transition:border-color .15s;
 }
-.search-input:focus{border-color:#171A1C;background:#fff}
+.search-input:focus{border-color:var(--ink);background:var(--panel)}
 .search-close{font-size:13px;font-weight:600;color:var(--ink-secondary);padding:6px 10px}
 .search-quick-title{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--ink-secondary);margin:12px 2px 8px}
 .search-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
@@ -349,7 +389,7 @@ input{font-family:inherit}
   background:rgba(23,26,28,.05);color:var(--ink);cursor:pointer;
   border:1px solid rgba(23,26,28,.08);transition:all .15s ease;
 }
-.search-chip:hover{background:#171A1C;color:#fff;border-color:#171A1C}
+.search-chip:hover{background:var(--chip-on-bg);color:var(--chip-on-ink);border-color:var(--chip-on-bg)}
 .geo-btn{
   display:flex;align-items:center;justify-content:center;gap:7px;
   width:100%;padding:10px 14px;border-radius:12px;background:#EAF0EC;
@@ -722,7 +762,7 @@ input{font-family:inherit}
 }
 .ask-input:focus{border-color:#171A1C}
 .ask-send{
-  flex:none;padding:0 17px;border-radius:14px;background:#171A1C;color:#F5F4EF;
+  flex:none;padding:0 17px;border-radius:14px;background:var(--chip-on-bg);color:var(--chip-on-ink);
   font-size:12.5px;font-weight:700;
 }
 .ask-disclaimer{
@@ -774,7 +814,7 @@ input{font-family:inherit}
 }
 .retry-btn{
   margin-top:12px;padding:9px 20px;border-radius:12px;
-  background:#171A1C;color:#F5F4EF;font-size:12.5px;font-weight:600;
+  background:var(--chip-on-bg);color:var(--chip-on-ink);font-size:12.5px;font-weight:600;
 }
 .location-sub.stale{color:var(--warn);font-weight:600}
 .ask-speak{
@@ -789,4 +829,52 @@ input{font-family:inherit}
 .ask-city-note{
   margin-bottom:8px;padding:6px 9px;border-radius:9px;font-size:11px;line-height:1.4;
   background:rgba(44,110,168,.09);border:1px solid rgba(44,110,168,.18);color:#245A88;
+}
+
+/* Alert cards keep their warning colour in both themes — a red or amber
+   card is the signal. But --ink flips to near-white in dark, which on those
+   pale backgrounds left the title and body invisible. Pin the text on these
+   surfaces to the dark ink regardless of theme. */
+[data-theme="dark"] .alert-card,
+[data-theme="dark"] .alert-banner{color:#171A1C}
+[data-theme="dark"] .alert-card .alert-card-title,
+[data-theme="dark"] .alert-card .alert-card-body,
+[data-theme="dark"] .alert-banner .alert-eyebrow,
+[data-theme="dark"] .alert-banner .alert-body{color:#171A1C}
+[data-theme="dark"] .alert-card-meta{color:rgba(23,26,28,.66)}
+
+/* Faint dark-ink fills (tracks, chips, hover states) disappear against a
+   dark surface. One override lifts them all to a faint light fill instead
+   of rewriting each rule for both themes. */
+[data-theme="dark"]{
+  --fill-1:rgba(255,255,255,.06);
+  --fill-2:rgba(255,255,255,.1);
+  --fill-3:rgba(255,255,255,.16);
+}
+[data-theme="dark"] .tile .progress-track,
+[data-theme="dark"] .outlook-col .bar-track,
+[data-theme="dark"] .search-input,
+[data-theme="dark"] .status-imd-pill{background:var(--fill-1)}
+[data-theme="dark"] .search-chip,
+[data-theme="dark"] .ask-chip,
+[data-theme="dark"] .ask-speak,
+[data-theme="dark"] .ask-mic,
+[data-theme="dark"] .saved-remove,
+[data-theme="dark"] .ask-alt,
+[data-theme="dark"] .ask-hint,
+[data-theme="dark"] .geo-btn:disabled{background:var(--fill-2);border-color:var(--fill-3)}
+[data-theme="dark"] .search-result:hover,
+[data-theme="dark"] .add-city-card:hover,
+[data-theme="dark"] .saved-remove:hover,
+[data-theme="dark"] .ask-mic:hover{background:var(--fill-3)}
+[data-theme="dark"] .tile.skeleton .eyebrow,
+[data-theme="dark"] .tile.skeleton .value,
+[data-theme="dark"] .tile.skeleton .status-text{background:var(--fill-2)}
+[data-theme="dark"] .ask-msg.user{background:var(--chip-on-bg);color:var(--chip-on-ink)}
+[data-theme="dark"] .ask-proactive,
+[data-theme="dark"] .ask-city-note{
+  background:rgba(127,178,229,.14);border-color:rgba(127,178,229,.28);color:#AFCEEC;
+}
+[data-theme="dark"] .ask-proactive.urgent{
+  background:rgba(232,164,92,.15);border-color:rgba(232,164,92,.3);color:#F0C48A;
 }

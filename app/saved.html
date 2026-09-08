@@ -28,6 +28,17 @@
   l.href = 'https://fonts.googleapis.com/css2?family=' + fams.join('&family=') + '&display=swap';
   document.head.appendChild(l);
   document.documentElement.lang = loc;
+
+  /* Theme before first paint, so no page flashes light and then goes dark.
+     'auto' uses a plain clock guess here; home.js refines it against the
+     location's real sunrise/sunset once the forecast has loaded. */
+  var mode = 'auto';
+  try { mode = (JSON.parse(localStorage.getItem('mausam.state.v1')) || {}).theme || 'auto'; } catch (e) {}
+  var h = new Date().getHours();
+  var dark = mode === 'dark' || (mode === 'auto' && (h < 6 || h >= 19));
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  var mc = document.querySelector('meta[name="theme-color"]');
+  if (mc) mc.setAttribute('content', dark ? '#101825' : '#F5F4EF');
 })();
 </script>
 <link rel="stylesheet" href="./css/styles.css">

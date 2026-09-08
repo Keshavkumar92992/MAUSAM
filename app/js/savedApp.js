@@ -1,6 +1,7 @@
 import { geocodeCity, fetchDestinationSummary, getCurrentLocation } from './weatherApi.js';
 import { getSavedCities, addSavedCity, removeSavedCity } from './travel.js';
 import { loadState, saveState } from './utils.js';
+import { isDarkTheme } from './theme.js';
 import { renderBottomNav, renderStatusBar, ICONS } from './icons.js';
 import { t } from './i18n.js';
 import './i18nStrings.js';
@@ -26,7 +27,7 @@ const state = {
 
 function render() {
   root.innerHTML = `
-    ${renderStatusBar(false)}
+    ${renderStatusBar(isDarkTheme())}
     <div class="texture-glow"></div>
     <div class="texture-grain"></div>
     <div class="content">
@@ -53,7 +54,7 @@ function render() {
         <div class="add-city-card" id="btn-add-city" style="margin-top:12px">${t('saved.add_city')}</div>
       </div>
       <div class="footer-note">${t('home.footer_dept')}<br>${t('home.footer_ministry')}</div>
-      ${renderBottomNav('saved', 0, false)}
+      ${renderBottomNav('saved', 0, isDarkTheme())}
     </div>
     <div class="home-indicator"></div>
     ${state.searchOpen ? renderSearch() : ''}

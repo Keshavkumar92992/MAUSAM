@@ -4,6 +4,7 @@ import { generateAlerts } from './alertLogic.js';
 import { loadState, fmtTime } from './utils.js';
 import { renderBottomNav, renderStatusBar } from './icons.js';
 import { t } from './i18n.js';
+import { isDarkTheme } from './theme.js';
 import './i18nStrings.js';
 
 const DEFAULT_CITY = { name: 'New Delhi', admin1: 'Delhi', country: 'India', lat: 28.5822, lon: 77.2 };
@@ -13,7 +14,7 @@ const city = saved.city || DEFAULT_CITY;
 
 function shell(inner, alertCount = 0) {
   root.innerHTML = `
-    ${renderStatusBar(false)}
+    ${renderStatusBar(isDarkTheme())}
     <div class="texture-glow"></div>
     <div class="texture-grain"></div>
     <div class="content">
@@ -30,7 +31,7 @@ function shell(inner, alertCount = 0) {
       </div>
       <div class="section-body">${inner}</div>
       <div class="footer-note">${t('home.footer_dept')}<br>${t('home.footer_ministry')}</div>
-      ${renderBottomNav('alerts', alertCount, false)}
+      ${renderBottomNav('alerts', alertCount, isDarkTheme())}
     </div>
     <div class="home-indicator"></div>
   `;

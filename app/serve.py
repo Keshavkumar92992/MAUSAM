@@ -3,13 +3,15 @@
 (explicit `directory=`) since this project's cwd is sometimes unreadable
 under the sandboxed process launcher used by the preview tool.
 
-Code (html/css/js) is served no-cache — this is an actively-changing dev
-server, and a browser (or phone) silently serving a stale cached JS file
-after an edit has already caused real confusion once this session.
-Images/fonts/icons are cached normally: they're several hundred KB each,
-almost never change, and re-fetching every single one of them on every
-persona switch (no caching at all, the previous behaviour here) is what
-made the app feel laggy over a phone's Wi-Fi connection.
+Code (html/css/js) is served "no-cache" (not "no-store"): the browser
+still keeps a local copy but must revalidate with the server on every
+request. Python's http.server already answers that revalidation with a
+304 Not Modified when the file's mtime hasn't changed, so the full file
+is only ever sent once and re-sent only after a real edit — this is what
+"no-store" was doing wrong: it forced a full re-download of every JS
+file on every single page/nav change, which is what made navigating
+between Home/Radar/Alerts/Saved feel slow on a phone. Images/fonts/icons
+cache for 24h outright since they change far less often than the code.
 """
 import functools
 import http.server
@@ -26,9 +28,7 @@ NO_CACHE_EXTENSIONS = (".html", ".css", ".js", ".json")
 class SmartCacheHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         if self.path.split("?")[0].endswith(NO_CACHE_EXTENSIONS) or self.path in ("/", ""):
-            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
-            self.send_header("Pragma", "no-cache")
-            self.send_header("Expires", "0")
+            self.send_header("Cache-Control", "no-cache, must-revalidate")
         else:
             self.send_header("Cache-Control", "public, max-age=86400")
         super().end_headers()

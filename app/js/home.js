@@ -283,7 +283,7 @@ function render() {
 
     <div class="hero-photo-band">
       <div class="hero-photo-wrapper" style="left:0;right:${crop.right};top:${crop.top}">
-        <img src="./assets/${persona}.png" alt="${t(PERSONA_LABEL_KEY[persona])}">
+        <img src="./assets/${persona}.jpg" alt="${t(PERSONA_LABEL_KEY[persona])}">
       </div>
     </div>
     <div class="hero-scrim" style="background:

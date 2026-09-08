@@ -76,6 +76,8 @@ const state = {
   searchResults: [],
   searchQuery: '',
   searchFailed: false,
+  stale: false,
+  errorKind: null,
   fetchedAt: null,
   langOpen: false,
   astroEvents: [],
@@ -185,16 +187,58 @@ async function loadWeather({ silent = false } = {}) {
     state.metrics = buildMetrics(bundle, state.city.name);
     state.fetchedAt = Date.now();
     state.status = 'ready';
+    state.stale = false;
+    cacheBundle(state.city, bundle);
     render();
     updateAskBadge();
     state.travel = await buildTravelData(state.metrics.tempNow);
     render();
   } catch (err) {
     console.error(err);
-    if (!silent) {
-      state.status = 'error';
+    if (silent) return;
+    // Falling back to the last good reading beats an empty error screen —
+    // an hour-old temperature is still roughly right, and the header says
+    // how old it is. Open-Meteo rate-limits by IP, so everyone sharing a
+    // Wi-Fi connection gets blocked together and this is the difference
+    // between a usable app and a dead one.
+    const cached = readCachedBundle(state.city);
+    if (cached) {
+      state.metrics = buildMetrics(cached.bundle, state.city.name);
+      state.fetchedAt = cached.at;
+      state.status = 'ready';
+      state.stale = true;
+      state.errorKind = err.status === 429 ? 'rate' : 'net';
       render();
+      updateAskBadge();
+      return;
     }
+    state.status = 'error';
+    state.errorKind = err.status === 429 ? 'rate' : 'net';
+    render();
+  }
+}
+
+// One city's bundle, kept out of the shared state blob because the hourly
+// arrays are far bigger than anything else the app stores.
+const WX_CACHE_KEY = 'mausam.wx.v1';
+
+function cacheBundle(city, bundle) {
+  try {
+    localStorage.setItem(WX_CACHE_KEY, JSON.stringify({
+      lat: city.lat, lon: city.lon, at: Date.now(), bundle,
+    }));
+  } catch { /* quota or private mode — the cache is a bonus, not a requirement */ }
+}
+
+function readCachedBundle(city) {
+  try {
+    const c = JSON.parse(localStorage.getItem(WX_CACHE_KEY));
+    if (!c || c.lat !== city.lat || c.lon !== city.lon) return null;
+    // Past a day the hourly arrays no longer cover "now" at all.
+    if (Date.now() - c.at > 24 * 3600e3) return null;
+    return c;
+  } catch {
+    return null;
   }
 }
 
@@ -399,7 +443,11 @@ function renderHeader(alert) {
         <span class="location-city">${state.city.name}${state.city.admin1 ? ', ' + state.city.admin1 : ''}</span>
         <span class="location-caret">▾</span>
       </div>
-      <div class="location-sub">${m ? t('home.data_source', { fresh: freshnessLabel(state.fetchedAt) }) : t('home.loading_conditions')}</div>
+      <div class="location-sub${state.stale ? ' stale' : ''}">${m
+        ? (state.stale
+          ? t('home.stale_notice', { fresh: freshnessLabel(state.fetchedAt) })
+          : t('home.data_source', { fresh: freshnessLabel(state.fetchedAt) }))
+        : t('home.loading_conditions')}</div>
 
       <div class="current-row">
         <div class="temp-block">
@@ -464,7 +512,7 @@ function renderError() {
   return `
     <div class="section-body">
       <div class="error-card">
-        <div>${t('home.retry_hint')}</div>
+        <div>${t(state.errorKind === 'rate' ? 'home.retry_rate' : 'home.retry_hint')}</div>
         <button id="btn-retry" class="retry-btn">${t('home.retry_btn')}</button>
       </div>
       ${/* Neither the sky event nor today's anniversary needs the weather

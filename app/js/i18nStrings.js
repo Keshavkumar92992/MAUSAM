@@ -56,6 +56,8 @@ registerEntries({
   'home.footer_ministry': { en: 'Ministry of Earth Sciences, Government of India', hi: 'पृथ्वी विज्ञान मंत्रालय, भारत सरकार', bn: 'আর্থ সায়েন্স মন্ত্রণালয়, ভারত সরকার', ta: 'புவி அறிவியல் அமைச்சகம், இந்திய அரசு' },
   'home.retry_hint': { en: 'Could not reach the weather service just now.', hi: 'अभी मौसम सेवा से संपर्क नहीं हो पाया।', bn: 'এই মুহূর্তে আবহাওয়া পরিষেবায় পৌঁছনো গেল না।', ta: 'இப்போது வானிலை சேவையை அணுக முடியவில்லை.' },
   'home.retry_btn': { en: 'Try again', hi: 'फिर कोशिश करें', bn: 'আবার চেষ্টা করুন', ta: 'மீண்டும் முயற்சி' },
+  'home.retry_rate': { en: 'Too many requests from this network. Open-Meteo limits by IP address, so every device on the same Wi-Fi shares one quota — try mobile data, or wait a few minutes.', hi: 'इस नेटवर्क से बहुत ज़्यादा अनुरोध हो गए। Open-Meteo IP पते के हिसाब से सीमा लगाता है, इसलिए एक ही वाई-फ़ाई के सभी डिवाइस एक कोटा बाँटते हैं — मोबाइल डेटा आज़माएँ, या कुछ मिनट रुकें।', bn: 'এই নেটওয়ার্ক থেকে অনেক বেশি অনুরোধ হয়েছে। Open-Meteo আইপি ধরে সীমা দেয়, তাই একই ওয়াই-ফাইয়ের সব ডিভাইস একটি কোটা ভাগ করে — মোবাইল ডেটা ব্যবহার করুন, বা কয়েক মিনিট অপেক্ষা করুন।', ta: 'இந்த நெட்வொர்க்கிலிருந்து மிக அதிக கோரிக்கைகள். Open-Meteo ஐபி முகவரி வாரியாக வரம்பிடுவதால், ஒரே வைஃபையில் உள்ள எல்லா சாதனங்களும் ஒரே ஒதுக்கீட்டைப் பகிர்கின்றன — மொபைல் டேட்டாவை முயற்சிக்கவும், அல்லது சில நிமிடங்கள் காத்திருக்கவும்.' },
+  'home.stale_notice': { en: '{{fresh}} · could not refresh just now', hi: '{{fresh}} · अभी ताज़ा नहीं हो सका', bn: '{{fresh}} · এখন রিফ্রেশ করা গেল না', ta: '{{fresh}} · இப்போது புதுப்பிக்க முடியவில்லை' },
 
   // ---------- Data-freshness label ----------
   'fresh.just_now': { en: 'updated just now', hi: 'अभी अपडेट हुआ', bn: 'এইমাত্র আপডেট হয়েছে', ta: 'இப்போது புதுப்பிக்கப்பட்டது' },

@@ -122,7 +122,13 @@ export async function fetchWeatherBundle(lat, lon) {
     fetchWithTimeout(forecastUrl, 12000),
     fetchWithTimeout(airUrl, 8000).catch(() => null),
   ]);
-  if (!forecastRes.ok) throw new Error('weather fetch failed');
+  if (!forecastRes.ok) {
+    // Carry the status so the UI can tell "you are being rate limited"
+    // apart from "the service is broken" — they need different advice.
+    const err = new Error('weather fetch failed');
+    err.status = forecastRes.status;
+    throw err;
+  }
   const forecast = await forecastRes.json();
   const air = airRes && airRes.ok ? await airRes.json() : null;
 

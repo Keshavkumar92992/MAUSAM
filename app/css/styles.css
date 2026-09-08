@@ -244,7 +244,7 @@ input{font-family:inherit}
 .temp-block .minmax{font-size:12px;color:var(--ink-secondary);margin-top:3px}
 
 .condition-icon{width:96px;height:96px;flex:none;position:relative}
-.condition-icon .sun{position:absolute;inset:14px;border-radius:50%;background:radial-gradient(circle at 34% 32%,#FFE9B0,#F2A93B 70%,#E0872A);box-shadow:0 0 34px rgba(242,169,59,.45)}
+.condition-icon .sun{position:absolute;inset:14px;border-radius:50%;overflow:hidden;background:radial-gradient(circle at 34% 32%,#FFE9B0,#F2A93B 70%,#E0872A);box-shadow:0 0 34px rgba(242,169,59,.45)}
 .condition-icon .cloud-a{position:absolute;left:6px;right:0;bottom:20px;height:26px;border-radius:16px;background:var(--cloud);box-shadow:0 6px 16px rgba(23,26,28,.10)}
 .condition-icon .cloud-b{position:absolute;left:22px;bottom:32px;width:34px;height:34px;border-radius:50%;background:var(--cloud)}
 .condition-icon.rain .sun{background:radial-gradient(circle at 34% 32%,#DCE6EE,#8FA8BC 70%,#5F7C93);box-shadow:0 0 24px rgba(95,124,147,.35)}
@@ -878,3 +878,31 @@ input{font-family:inherit}
 [data-theme="dark"] .ask-proactive.urgent{
   background:rgba(232,164,92,.15);border-color:rgba(232,164,92,.3);color:#F0C48A;
 }
+
+/* At night the disc is a moon, not a dimmed sun. Showing a blazing sun at
+   2 AM is wrong however tastefully it is coloured, and every weather app
+   people already use switches the glyph rather than just its brightness.
+   The shaded limb and craters are pseudo-elements layered over the disc —
+   translucent, not punched out, since this sits over the hero photo and a
+   solid "bite" would show the wrong colour through it. */
+[data-theme="dark"] .condition-icon .sun{
+  background:radial-gradient(circle at 42% 38%,#FFFFFF,#F2F6FC 46%,#D3DDEB 78%,#B9C6D8);
+  box-shadow:0 0 26px rgba(206,224,248,.35), 0 0 60px rgba(150,180,220,.18);
+}
+/* Craters, not a terminator. A shaded limb needs a light direction to be
+   believable and at this size it just read as a donut; three soft dents on
+   a full disc say "moon" immediately. */
+[data-theme="dark"] .condition-icon .sun::before{
+  content:'';position:absolute;left:24%;top:26%;width:15px;height:15px;border-radius:50%;
+  background:rgba(126,146,176,.28);
+  box-shadow:20px 18px 0 -3px rgba(126,146,176,.24),
+             -1px 30px 0 -5px rgba(126,146,176,.2),
+             30px -2px 0 -7px rgba(126,146,176,.18);
+}
+[data-theme="dark"] .condition-icon.rain .sun,
+[data-theme="dark"] .condition-icon.cloud .sun{
+  background:radial-gradient(circle at 34% 32%,#C8D4E2,#8E9DB0 70%,#65748A);
+  box-shadow:0 0 20px rgba(142,157,176,.28);
+}
+[data-theme="dark"] .condition-icon.rain .sun::before,
+[data-theme="dark"] .condition-icon.cloud .sun::before{display:none}

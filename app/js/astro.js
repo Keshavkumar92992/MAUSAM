@@ -43,7 +43,9 @@ registerEntries({
   'astro.vis.india_partial': { en: 'Partially visible from India', hi: 'भारत से आंशिक रूप से दृश्य', bn: 'ভারত থেকে আংশিকভাবে দৃশ্যমান', ta: 'இந்தியாவிலிருந்து பகுதியளவு தெரியும்' },
   'astro.vis.global': { en: 'Visible worldwide, cloud cover permitting', hi: 'दुनिया भर में दृश्य, बशर्ते बादल न हों', bn: 'সারা বিশ্বে দৃশ্যমান, মেঘ না থাকলে', ta: 'மேகம் மறைக்காவிட்டால் உலகம் முழுவதும் தெரியும்' },
 
-  'astro.hist.eyebrow': { en: 'On this day', hi: 'आज ही के दिन', bn: 'আজকের দিনে', ta: 'இன்றைய தினம்' },
+  'astro.hist.eyebrow': { en: 'On this day', hi: 'आज ही के दिन', bn: 'আজকের দিনে', ta: 'இন்றைய தினம்' },
+  'astro.hist.eyebrow_week': { en: 'This week in history', hi: 'इसी हफ़्ते के इतिहास में', bn: 'ইতিহাসে এই সপ্তাহে', ta: 'வரலாற்றில் இந்த வாரம்' },
+  'astro.hist.on_date': { en: '{{date}} {{year}} · {{n}} years ago', hi: '{{date}} {{year}} · {{n}} साल पहले', bn: '{{date}} {{year}} · {{n}} বছর আগে', ta: '{{date}} {{year}} · {{n}} ஆண்டுகளுக்கு முன்' },
   'astro.hist.badge': { en: '{{year}}', hi: '{{year}}', bn: '{{year}}', ta: '{{year}}' },
   'astro.hist.ago': { en: '{{n}} years ago today', hi: 'आज से {{n}} साल पहले', bn: 'আজ থেকে {{n}} বছর আগে', ta: 'இன்றிலிருந்து {{n}} ஆண்டுகளுக்கு முன்' },
   'astro.hist.next': { en: 'Next in the sky: {{name}}, {{when}}', hi: 'आसमान में अगला: {{name}}, {{when}}', bn: 'আকাশে পরবর্তী: {{name}}, {{when}}', ta: 'வானில் அடுத்தது: {{name}}, {{when}}' },
@@ -91,15 +93,38 @@ export async function loadAstroHistory() {
 
 // Matched on the Indian calendar date, not the browser's — the app is
 // India-facing, and near midnight UTC the two disagree by a day.
+function istToday() {
+  const [y, m, d] = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date()).split('-');
+  return { y: +y, md: `${m}-${d}` };
+}
+
+// Calendar-day distance that wraps around new year, so 12-30 and 01-02 are
+// three days apart rather than 363.
+function dayGap(mdA, mdB, year) {
+  const at = Date.UTC(year, +mdA.slice(0, 2) - 1, +mdA.slice(3));
+  const bt = Date.UTC(year, +mdB.slice(0, 2) - 1, +mdB.slice(3));
+  const raw = Math.round(Math.abs(at - bt) / 864e5);
+  return Math.min(raw, 365 - raw);
+}
+
+// A table of 42 anniversaries only lands on the exact date one day in nine,
+// so an exact-match-only rule left almost every day showing the distant
+// "next event" countdown this was meant to replace. Near misses are still
+// worth showing — they just have to be labelled honestly as the week
+// rather than the day.
+const NEAR_DAYS_HIST = 5;
+
 export function onThisDay(history) {
-  const md = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Kolkata', month: '2-digit', day: '2-digit',
-  }).format(new Date()).slice(-5);
-  const hits = history.filter((h) => h.date === md);
-  if (!hits.length) return null;
-  // Two entries can share a date; the older one is the bigger deal more
-  // often than not, so it leads.
-  return hits.sort((a, b) => a.year - b.year)[0];
+  const { y, md } = istToday();
+  const scored = history
+    .map((h) => ({ h, gap: dayGap(h.date, md, y) }))
+    .filter((x) => x.gap <= NEAR_DAYS_HIST)
+    .sort((a, b) => (a.gap - b.gap) || (a.h.year - b.h.year));
+  if (!scored.length) return null;
+  const { h, gap } = scored[0];
+  return { ...h, exact: gap === 0 };
 }
 
 // A sky event only earns the strip when it is close enough to plan around.
@@ -275,13 +300,20 @@ export function wireAstroCard() {
   }, { passive: true });
 }
 
+// "5 September" in the reader's language, built from the stored MM-DD.
+function histDateLabel(h) {
+  const d = new Date(Date.UTC(2000, +h.date.slice(0, 2) - 1, +h.date.slice(3), 12));
+  return new Intl.DateTimeFormat(LOCALE_TAG[getLocale()] || 'en-IN',
+    { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(d);
+}
+
 export function renderHistoryStrip(h) {
   if (!h) return '';
   return `
     <button class="astro-strip" id="astro-strip" style="--astro-accent:${ACCENT.SUPERMOON}">
       ${art('HISTORY', 'astro-thumb', 5, 2)}
       <span class="astro-strip-text">
-        <span class="astro-strip-eyebrow">${t('astro.hist.eyebrow')}</span>
+        <span class="astro-strip-eyebrow">${t(h.exact ? 'astro.hist.eyebrow' : 'astro.hist.eyebrow_week')}</span>
         <span class="astro-strip-name">${localized(h.title)}</span>
       </span>
       <span class="astro-strip-when">${t('astro.hist.badge', { year: h.year })}</span>
@@ -300,12 +332,14 @@ export function renderHistoryModal(h, upcoming) {
         <div class="astro-card-inner">
           <div class="astro-head">
             <span class="astro-glyph">${GLYPH.SUPERMOON}</span>
-            <span class="astro-eyebrow">${t('astro.hist.eyebrow')}</span>
+            <span class="astro-eyebrow">${t(h.exact ? 'astro.hist.eyebrow' : 'astro.hist.eyebrow_week')}</span>
             <span class="astro-countdown">${h.year}</span>
           </div>
 
           <h2 class="astro-title" id="astro-title">${localized(h.title)}</h2>
-          <p class="astro-sub">${t('astro.hist.ago', { n: years })}</p>
+          <p class="astro-sub">${h.exact
+            ? t('astro.hist.ago', { n: years })
+            : t('astro.hist.on_date', { date: histDateLabel(h), year: h.year, n: years })}</p>
 
           <ul class="astro-facts"><li>${localized(h.body)}</li></ul>
 

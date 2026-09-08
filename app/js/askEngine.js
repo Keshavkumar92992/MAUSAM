@@ -208,11 +208,37 @@ export function parseIntent(raw, fallbackPersona) {
   };
 }
 
-// Words that follow "in"/"at" without being a place, so "rain in the
-// morning" is not mistaken for a city called "the morning".
-const NOT_A_PLACE = new Set(['the', 'my', 'this', 'that', 'morning', 'afternoon', 'evening',
-  'night', 'today', 'tomorrow', 'general', 'summer', 'winter', 'monsoon', 'time', 'hour',
-  'hours', 'minutes', 'india', 'here', 'town', 'city', 'area', 'future', 'a', 'an']);
+// A place name has to survive three checks before it is trusted, because a
+// wrong match here silently answers with another city's weather — the worst
+// failure this feature can have. Earlier versions pulled "run" out of "best
+// time for a run" and "aaj" out of "aaj ka mausam kaisa hai".
+const NOT_A_PLACE = new Set([
+  // articles / determiners
+  'the', 'a', 'an', 'my', 'this', 'that', 'these', 'those', 'some', 'any',
+  // time
+  'morning', 'afternoon', 'evening', 'night', 'today', 'tomorrow', 'tonight',
+  'now', 'later', 'time', 'hour', 'hours', 'minutes', 'day', 'days', 'week',
+  'weekend', 'month', 'summer', 'winter', 'monsoon', 'season', 'future',
+  'aaj', 'kal', 'abhi', 'subah', 'shaam', 'raat', 'din', 'baje', 'samay',
+  // weather words
+  'weather', 'rain', 'raining', 'sun', 'sunshine', 'heat', 'cold', 'wind',
+  'storm', 'fog', 'humidity', 'temperature', 'forecast', 'mausam', 'barish',
+  'garmi', 'thand', 'dhoop', 'hawa',
+  // places-in-general, not a place
+  'here', 'there', 'home', 'town', 'city', 'area', 'india', 'outside',
+  'general', 'park', 'hills', 'hill', 'mountains', 'beach', 'office', 'road',
+  // gear / misc
+  'umbrella', 'raincoat', 'jacket', 'sunscreen', 'case',
+]);
+
+// Any word the intent parser already recognises as an activity or a question
+// cue cannot also be a city — this reuses the lists above rather than trying
+// to enumerate every non-place word a second time.
+const RESERVED_WORDS = new Set(
+  [...Object.values(ACTIVITY_WORDS).flat(), ...Object.values(INTENT_WORDS).flat()]
+    .flatMap((w) => w.toLowerCase().split(/\s+/))
+    .filter((w) => w.length > 2)
+);
 
 // Extracts a place from phrasings like "weather in Mumbai", "Mumbai ka
 // mausam", "Pune mein barish". Returns the raw phrase; the caller geocodes
@@ -222,21 +248,22 @@ export function extractPlace(raw) {
   const text = (raw || '').trim();
   if (!text) return null;
 
-  // English: after in / at / for / around
   let m = text.match(/\b(?:in|at|for|around|near)\s+([A-Za-z][A-Za-z\s.'-]{1,30}?)\s*(?:\?|$|,|\btoday\b|\btomorrow\b|\bnow\b|\bthis\b)/i);
-  // Hinglish/Hindi: "<place> ka mausam", "<place> mein barish", "<place> में"
   if (!m) m = text.match(/([A-Za-z][A-Za-z\s.'-]{1,30}?)\s+(?:ka|ki|ke|mein|me|men|में|का|की|के)\b/i);
   if (!m) return null;
 
-  const phrase = m[1].trim().replace(/\s+/g, ' ');
-  if (phrase.length < 3) return null;
-  const words = phrase.toLowerCase().split(' ');
-  if (words.every((w) => NOT_A_PLACE.has(w))) return null;
-  // Trim leading filler ("the weather in the Mumbai area" -> "Mumbai")
-  while (words.length > 1 && NOT_A_PLACE.has(words[0])) words.shift();
-  while (words.length > 1 && NOT_A_PLACE.has(words[words.length - 1])) words.pop();
-  const cleaned = words.join(' ');
-  return NOT_A_PLACE.has(cleaned) ? null : cleaned;
+  let words = m[1].trim().toLowerCase().split(/\s+/);
+  // Trim filler from both ends ("the Mumbai area" -> "mumbai")
+  while (words.length && NOT_A_PLACE.has(words[0])) words.shift();
+  while (words.length && NOT_A_PLACE.has(words[words.length - 1])) words.pop();
+  if (!words.length || words.length > 3) return null;
+
+  // Anything still containing a stopword or a word the intent parser owns is
+  // a sentence fragment, not a place.
+  if (words.some((w) => NOT_A_PLACE.has(w) || RESERVED_WORDS.has(w))) return null;
+
+  const phrase = words.join(' ');
+  return phrase.length >= 3 ? phrase : null;
 }
 
 // ---------- hazard scoring ----------

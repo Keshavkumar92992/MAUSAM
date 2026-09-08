@@ -242,8 +242,16 @@ async function resolveAskedCity(question, current) {
   if (phrase.toLowerCase() === (current.name || '').toLowerCase()) return { city: current };
   try {
     const hits = await geocodeCity(phrase);
-    if (!hits.length) return { city: current, missed: phrase };
-    const hit = hits.find((h) => h.country === 'India') || hits[0];
+    // The geocoder answers *something* for almost any string, so require the
+    // result to actually look like what was asked for. Without this, a stray
+    // word that slipped past the stopword list quietly relocates the answer.
+    const looksRight = (h) => {
+      const n = (h.name || '').toLowerCase();
+      return n === phrase || n.startsWith(phrase) || phrase.startsWith(n);
+    };
+    const matches = hits.filter(looksRight);
+    if (!matches.length) return { city: current, missed: phrase };
+    const hit = matches.find((h) => h.country === 'India') || matches[0];
     const bundle = await fetchWeatherBundle(hit.lat, hit.lon);
     return {
       city: { name: hit.name, admin1: hit.admin1, country: hit.country, lat: hit.lat, lon: hit.lon },

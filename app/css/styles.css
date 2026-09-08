@@ -190,10 +190,12 @@ input{font-family:inherit}
 
 .header-block{padding:54px 20px 24px}
 @media (max-width:440px){
-  /* That 54px was reserved for the fake status bar, which is now hidden
-     on real phones — the real OS status bar sits outside the page, so
-     this just needs a small safe gap, not the mockup's reserved space. */
-  .header-block{padding-top:20px}
+  /* That 54px was reserved for the fake status bar, which is now hidden on
+     real phones. The page is viewport-fit=cover and the PWA runs
+     standalone, so content really does extend under the clock and notch —
+     the inset is what keeps the wordmark out from under them. The fallback
+     0px covers every non-notched device and desktop. */
+  .header-block{padding-top:max(18px, calc(6px + env(safe-area-inset-top, 0px)))}
 }
 .wordmark-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
 .wordmark{display:flex;align-items:baseline;gap:9px}
@@ -329,7 +331,7 @@ input{font-family:inherit}
   width:402px;max-width:100vw;
   background:var(--glass);backdrop-filter:blur(16px);
   border-top:1px solid rgba(23,26,28,.08);display:grid;grid-template-columns:repeat(4,1fr);
-  padding:10px 8px 30px;z-index:30;
+  padding:10px 8px max(26px, calc(10px + env(safe-area-inset-bottom, 0px)));z-index:30;
 }
 @media (max-width:440px){
   .bottom-nav{left:0;transform:none;width:100%}
@@ -906,3 +908,40 @@ input{font-family:inherit}
 }
 [data-theme="dark"] .condition-icon.rain .sun::before,
 [data-theme="dark"] .condition-icon.cloud .sun::before{display:none}
+
+/* Safe areas. viewport-fit=cover lets the hero photo run edge to edge —
+   which is the point — but every piece of *text* and every tap target has
+   to sit inside the insets or it ends up under the clock or the home
+   indicator. env() resolves to 0 on hardware without them. */
+.content-sheet{padding-bottom:calc(148px + env(safe-area-inset-bottom, 0px))}
+.ask-fab{bottom:max(88px, calc(76px + env(safe-area-inset-bottom, 0px)))}
+@media (max-width:440px){ .ask-fab{bottom:max(92px, calc(80px + env(safe-area-inset-bottom, 0px)))} }
+.search-overlay{padding-top:calc(54px + env(safe-area-inset-top, 0px))}
+.ask-overlay{padding-bottom:env(safe-area-inset-bottom, 0px)}
+.astro-overlay{
+  padding-top:calc(24px + env(safe-area-inset-top, 0px));
+  padding-bottom:calc(24px + env(safe-area-inset-bottom, 0px));
+}
+.ask-panel{padding-bottom:env(safe-area-inset-bottom, 0px)}
+/* Landscape notches eat into the sides too. */
+@media (max-width:440px){
+  .header-block{
+    padding-left:calc(20px + env(safe-area-inset-left, 0px));
+    padding-right:calc(20px + env(safe-area-inset-right, 0px));
+  }
+  .bottom-nav{
+    padding-left:calc(8px + env(safe-area-inset-left, 0px));
+    padding-right:calc(8px + env(safe-area-inset-right, 0px));
+  }
+}
+
+/* A dark wash exactly as tall as the status bar inset. iOS draws the clock
+   and battery in white over the page in black-translucent mode, so they need
+   something behind them regardless of theme or of what the hero photo
+   happens to be showing at the top. Zero height on hardware with no inset,
+   so nothing appears on desktop or Android. */
+.status-scrim{
+  position:fixed;top:0;left:0;right:0;z-index:50;pointer-events:none;
+  height:env(safe-area-inset-top, 0px);
+  background:linear-gradient(180deg,rgba(8,13,20,.55),rgba(8,13,20,.12));
+}

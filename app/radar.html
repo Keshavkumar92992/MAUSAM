@@ -2,9 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mausam · Radar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<meta name="theme-color" content="#0C1622">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./assets/icon-180.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32.png">
@@ -35,6 +38,14 @@
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   var mc = document.querySelector('meta[name="theme-color"]');
   if (mc) mc.setAttribute('content', dark ? '#101825' : '#F5F4EF');
+
+  /* Sits behind the iOS status bar text. Added here rather than in each
+     page's body so there is one copy of it. */
+  document.addEventListener('DOMContentLoaded', function () {
+    var sc = document.createElement('div');
+    sc.className = 'status-scrim';
+    document.body.appendChild(sc);
+  });
 })();
 </script>
 <link rel="stylesheet" href="./css/styles.css">
@@ -49,7 +60,7 @@
   .app-shell.dark{background:#0C1622;box-shadow:0 35px 80px -10px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.12), 0 0 0 8px #131E2C}
   .radar-header{padding:54px 20px 12px}
   @media (max-width:440px){
-    .radar-header{padding-top:20px}
+    .radar-header{padding-top:max(18px, calc(6px + env(safe-area-inset-top, 0px)))}
   }
   .radar-header-row{display:flex;align-items:center;justify-content:space-between}
   .radar-title{display:flex;align-items:baseline;gap:8px}

@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F5F4EF">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<!-- black-translucent puts the status bar over the page so the hero photo
+     runs to the very top edge, the way a native iOS weather app looks. Its
+     text is always white, so .status-scrim below guarantees something dark
+     behind it in both themes; without that the clock vanished against a
+     bright sky in light mode and against nothing in dark. -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="Mausam · Meteorological alerts and IMD nowcasts">
 <title>Mausam · Alerts</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -39,6 +44,14 @@
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   var mc = document.querySelector('meta[name="theme-color"]');
   if (mc) mc.setAttribute('content', dark ? '#101825' : '#F5F4EF');
+
+  /* Sits behind the iOS status bar text. Added here rather than in each
+     page's body so there is one copy of it. */
+  document.addEventListener('DOMContentLoaded', function () {
+    var sc = document.createElement('div');
+    sc.className = 'status-scrim';
+    document.body.appendChild(sc);
+  });
 })();
 </script>
 <link rel="stylesheet" href="./css/styles.css">

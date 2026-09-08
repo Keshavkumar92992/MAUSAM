@@ -4,6 +4,8 @@ import { buildPersonaView } from './personas.js';
 import { buildTravelData, addSavedCity } from './travel.js';
 import { loadState, saveState, fmtTime } from './utils.js';
 import { ICONS, renderBottomNav, renderStatusBar } from './icons.js';
+import { t, getLocale, setLocale, LOCALES } from './i18n.js';
+import './i18nStrings.js';
 
 // `top` is the framing decision (how far down into the photo the visible
 // window starts) — kept fixed per persona. `height` is no longer a fixed
@@ -48,6 +50,14 @@ const POPULAR_CITIES = [
   { name: 'Leh', admin1: 'Ladakh', country: 'India', lat: 34.1526, lon: 77.5771 },
 ];
 
+// persona-config.json's own `label` field is English-only static config —
+// translate by persona id instead so the chip row respects the chosen
+// language rather than always showing the config's English text.
+const PERSONA_LABEL_KEY = {
+  health: 'persona.health', fitness: 'persona.fitness', beach: 'persona.beach',
+  travel: 'persona.travel', family: 'persona.family', agri: 'persona.agri', commute: 'persona.commute',
+};
+
 const DEFAULT_CITY = POPULAR_CITIES[0];
 
 const root = document.getElementById('app-root');
@@ -63,6 +73,7 @@ const state = {
   searchResults: [],
   searchQuery: '',
   fetchedAt: null,
+  langOpen: false,
 };
 
 const REFRESH_AFTER_MS = 10 * 60 * 1000;
@@ -73,11 +84,11 @@ const REFRESH_AFTER_MS = 10 * 60 * 1000;
 function freshnessLabel(fetchedAt) {
   if (!fetchedAt) return '';
   const mins = Math.floor((Date.now() - fetchedAt) / 60000);
-  if (mins < 1) return 'updated just now';
-  if (mins === 1) return 'updated 1 min ago';
-  if (mins < 60) return `updated ${mins} min ago`;
+  if (mins < 1) return t('fresh.just_now');
+  if (mins === 1) return t('fresh.min_ago_one');
+  if (mins < 60) return t('fresh.min_ago_n', { n: mins });
   const hrs = Math.floor(mins / 60);
-  return hrs === 1 ? 'updated 1 hour ago' : `updated ${hrs} hours ago`;
+  return hrs === 1 ? t('fresh.hour_ago_one') : t('fresh.hour_ago_n', { n: hrs });
 }
 
 async function init() {
@@ -87,6 +98,7 @@ async function init() {
   const saved = loadState();
   state.city = saved.city || DEFAULT_CITY;
   state.activePersona = saved.activePersona || 'health';
+  document.documentElement.lang = getLocale();
 
   render();
   await loadWeather();
@@ -157,6 +169,17 @@ function closeSearch() {
   render();
 }
 
+function toggleLang() {
+  state.langOpen = !state.langOpen;
+  render();
+}
+
+function chooseLang(code) {
+  setLocale(code);
+  state.langOpen = false;
+  render();
+}
+
 let searchDebounce = null;
 async function onSearchInput(value) {
   state.searchQuery = value;
@@ -196,23 +219,23 @@ async function useCurrentLocation() {
   // which is how this app is reached over Wi-Fi, does not qualify, and
   // the browser refuses before ever prompting for permission.
   if (!window.isSecureContext) {
-    if (geoBtn) geoBtn.textContent = 'Needs HTTPS — unavailable on this address';
+    if (geoBtn) geoBtn.textContent = t('home.needs_https');
     return;
   }
-  if (geoBtn) geoBtn.textContent = 'Locating…';
+  if (geoBtn) geoBtn.textContent = t('home.locating');
   try {
     const place = await getCurrentLocation();
     await selectCity({ name: place.name, admin1: place.admin1, country: place.country || 'India', lat: place.lat, lon: place.lon });
   } catch (err) {
-    if (geoBtn) geoBtn.textContent = err.message || 'Could not get your location';
-    setTimeout(() => { if (geoBtn) geoBtn.textContent = 'Use My Current Location'; }, 3000);
+    if (geoBtn) geoBtn.textContent = err.message || t('home.needs_https');
+    setTimeout(() => { if (geoBtn) geoBtn.textContent = t('home.use_current_location'); }, 3000);
   }
 }
 
 function saveDestination() {
   if (!state.city) return;
   addSavedCity({ name: `${state.city.name}${state.city.admin1 ? ', ' + state.city.admin1 : ''}`, lat: state.city.lat, lon: state.city.lon });
-  buildTravelData(state.metrics?.tempNow).then((t) => { state.travel = t; render(); });
+  buildTravelData(state.metrics?.tempNow).then((tv) => { state.travel = tv; render(); });
 }
 
 function alertInfo(m) {
@@ -220,12 +243,12 @@ function alertInfo(m) {
   const stormSoon = (m.daily.weather_code || []).slice(0, 1).some((c) => [95, 96, 99].includes(c));
   if (m.gustsMaxToday > 45 || stormSoon) {
     return {
-      eyebrow: 'THUNDERSTORM RISK',
-      body: `Thunderstorm with gusty winds (up to ${m.gustsMaxToday} km/h) possible today. Secure loose objects outdoors.`,
+      eyebrow: t('alertbar.thunderstorm_badge'),
+      body: t('alertbar.thunderstorm_body', { kmh: m.gustsMaxToday }),
     };
   }
   if (m.aqi_pm25 > 200) {
-    return { eyebrow: 'AIR QUALITY ALERT', body: `AQI in the poor–severe range (${m.aqi_pm25}). Sensitive groups should limit outdoor exposure.` };
+    return { eyebrow: t('alertbar.aqi_badge'), body: t('alertbar.aqi_body', { aqi: m.aqi_pm25 }) };
   }
   return null;
 }
@@ -260,7 +283,7 @@ function render() {
 
     <div class="hero-photo-band">
       <div class="hero-photo-wrapper" style="left:0;right:${crop.right};top:${crop.top}">
-        <img src="./assets/${persona}.png" alt="${personaDef.label}">
+        <img src="./assets/${persona}.png" alt="${t(PERSONA_LABEL_KEY[persona])}">
       </div>
     </div>
     <div class="hero-scrim" style="background:
@@ -279,6 +302,7 @@ function render() {
     </div>
     <div class="home-indicator"></div>
     ${state.searchOpen ? renderSearch() : ''}
+    ${state.langOpen ? renderLangPicker() : ''}
   `;
 
   if (prevChipScroll) document.querySelector('.persona-scroll').scrollLeft = prevChipScroll;
@@ -310,6 +334,7 @@ function renderHeader(alert) {
       <div class="wordmark-row">
         <div class="wordmark"><span class="en">Mausam</span><span class="hi">मौसम</span></div>
         <div class="header-icons">
+          <button class="icon-btn lang-btn" id="btn-lang" title="Language">${getLocale().toUpperCase()}</button>
           <button class="icon-btn" id="btn-search" title="Search city" aria-label="Search city">${ICONS.search()}</button>
         </div>
       </div>
@@ -318,16 +343,16 @@ function renderHeader(alert) {
         <span class="location-city">${state.city.name}${state.city.admin1 ? ', ' + state.city.admin1 : ''}</span>
         <span class="location-caret">▾</span>
       </div>
-      <div class="location-sub">${m ? `Open-Meteo model data · ${freshnessLabel(state.fetchedAt)}` : 'Loading conditions…'}</div>
+      <div class="location-sub">${m ? t('home.data_source', { fresh: freshnessLabel(state.fetchedAt) }) : t('home.loading_conditions')}</div>
 
       <div class="current-row">
         <div class="temp-block">
           <div class="deg-row">
             <span class="deg">${m ? m.tempNow : '--'}</span><span class="unit">°C</span>
           </div>
-          ${m && m.precip_now_mm > 0 ? `<div class="raining-now"><span class="live-dot"></span>Raining now · ${m.precip_now_mm} mm last hour</div>` : ''}
-          <div class="condition">${m ? `${m.conditionLabel} · Feels like ${m.feelsLikeNow}°` : 'Loading…'}</div>
-          <div class="minmax">${m ? `H ${m.tempMax}°&nbsp; L ${m.tempMin}° &nbsp;·&nbsp; Humidity ${m.humidityNow}%` : ''}</div>
+          ${m && m.precip_now_mm > 0 ? `<div class="raining-now"><span class="live-dot"></span>${t('home.raining_now', { mm: m.precip_now_mm })}</div>` : ''}
+          <div class="condition">${m ? `${m.conditionLabel} · ${t('val.feels_like', { temp: m.feelsLikeNow })}` : t('home.loading_conditions')}</div>
+          <div class="minmax">${m ? t('val.hi_lo_humidity', { hi: m.tempMax, lo: m.tempMin, hum: m.humidityNow }) : ''}</div>
         </div>
         <div class="condition-icon ${iconClass}">
           <div class="sun"></div>
@@ -354,7 +379,7 @@ function renderPersonaChips(activeDef) {
       ${personaConfig.personas.map((p) => `
         <div class="persona-chip ${p.id === state.activePersona ? 'active' : ''}" data-persona="${p.id}">
           <span class="dot" style="background:${p.id === state.activePersona ? '#fff' : p.dot}"></span>
-          ${p.label}
+          ${t(PERSONA_LABEL_KEY[p.id])}
         </div>
       `).join('')}
     </div>
@@ -364,7 +389,7 @@ function renderPersonaChips(activeDef) {
 function renderSkeleton() {
   return `
     <div class="section-body">
-      <div class="section-heading"><div class="title">Loading your update…</div></div>
+      <div class="section-heading"><div class="title">${t('home.loading_conditions')}</div></div>
       <div class="tile-grid">
         ${[0, 1, 2, 3].map(() => `
           <div class="tile skeleton">
@@ -382,7 +407,7 @@ function renderSkeleton() {
 function renderError() {
   return `
     <div class="section-body">
-      <div class="error-card">IMD feed unavailable — showing last known state.<br>Pull down to retry.</div>
+      <div class="error-card">${t('home.retry_hint')}</div>
     </div>
   `;
 }
@@ -392,17 +417,17 @@ function renderBody(personaDef) {
   return `
     <div class="section-body">
       <div class="section-heading">
-        <div class="title">For you · ${personaDef.label}</div>
+        <div class="title">${t('home.for_you', { persona: t(PERSONA_LABEL_KEY[state.activePersona]) })}</div>
         <div class="meta">${view.summary}</div>
       </div>
 
       <div class="tile-grid">
-        ${view.tiles.map((t) => `
+        ${view.tiles.map((tl) => `
           <div class="tile">
-            <div class="eyebrow">${t.label.toUpperCase()}</div>
-            <div class="value-row"><span class="value">${t.value}</span>${t.unit ? `<span class="unit">${t.unit}</span>` : ''}</div>
-            <div class="status-row"><span class="status-dot" style="background:${t.color}"></span><span class="status-text" style="color:${t.color}">${t.statusLabel}</span></div>
-            <div class="progress-track"><div class="progress-fill" style="width:${t.pct};background:${t.color}"></div></div>
+            <div class="eyebrow">${tl.label.toUpperCase()}</div>
+            <div class="value-row"><span class="value">${tl.value}</span>${tl.unit ? `<span class="unit">${tl.unit}</span>` : ''}</div>
+            <div class="status-row"><span class="status-dot" style="background:${tl.color}"></span><span class="status-text" style="color:${tl.color}">${tl.statusLabel}</span></div>
+            <div class="progress-track"><div class="progress-fill" style="width:${tl.pct};background:${tl.color}"></div></div>
           </div>
         `).join('')}
       </div>
@@ -423,13 +448,13 @@ function renderBody(personaDef) {
       </div>
 
       ${state.activePersona === 'travel' ? `
-        <button id="btn-save-dest" style="margin-top:10px;width:100%;padding:11px;border-radius:14px;background:rgba(255,255,255,.9);border:1px solid rgba(23,26,28,.1);font-size:12.5px;font-weight:600;color:var(--ink)">+ Save "${state.city.name}" to travel list</button>
+        <button id="btn-save-dest" style="margin-top:10px;width:100%;padding:11px;border-radius:14px;background:rgba(255,255,255,.9);border:1px solid rgba(23,26,28,.1);font-size:12.5px;font-weight:600;color:var(--ink)">${t('home.save_destination', { city: state.city.name })}</button>
       ` : ''}
 
       <div class="guidance-card">
         <div class="guidance-badge"></div>
         <div>
-          <div class="guidance-eyebrow">GUIDANCE FOR YOU</div>
+          <div class="guidance-eyebrow">${t('home.guidance_for_you')}</div>
           <div class="guidance-body">${view.tip}</div>
         </div>
       </div>
@@ -447,7 +472,7 @@ function renderOutlook() {
   const icons = { sun: '#F2A93B', cloud: '#8FA8BC', rain: '#5F7C93' };
   return `
     <div class="outlook">
-      <div class="outlook-header"><div class="title">7-day outlook</div><div class="meta">Rain probability</div></div>
+      <div class="outlook-header"><div class="title">${t('home.outlook_title')}</div><div class="meta">${t('home.outlook_subtitle')}</div></div>
       <div class="outlook-grid">
         ${days.map((iso, i) => {
           const idx = i + 1;
@@ -474,7 +499,7 @@ function renderOutlook() {
 }
 
 function renderFooter() {
-  return `<div class="footer-note">India Meteorological Department<br>Ministry of Earth Sciences, Government of India</div>`;
+  return `<div class="footer-note">${t('home.footer_dept')}<br>${t('home.footer_ministry')}</div>`;
 }
 
 function renderSearch() {
@@ -482,15 +507,15 @@ function renderSearch() {
     <div class="search-overlay" id="search-overlay">
       <div class="search-panel">
         <div class="search-input-row">
-          <input id="search-input" class="search-input" placeholder="Search city or district…" value="${state.searchQuery}" autocomplete="off">
-          <button class="search-close" id="search-close">Cancel</button>
+          <input id="search-input" class="search-input" placeholder="${t('home.search_placeholder')}" value="${state.searchQuery}" autocomplete="off">
+          <button class="search-close" id="search-close">${t('home.cancel')}</button>
         </div>
 
         <button class="geo-btn" id="btn-geo" ${window.isSecureContext ? '' : 'disabled title="Needs a secure (https) connection — works once this app is deployed"'}>
-          ${ICONS.location('', 'currentColor')} ${window.isSecureContext ? 'Use My Current Location' : 'Location needs HTTPS (unavailable here)'}
+          ${ICONS.location('', 'currentColor')} ${window.isSecureContext ? t('home.use_current_location') : t('home.needs_https')}
         </button>
 
-        <div class="search-quick-title">POPULAR MET STATIONS</div>
+        <div class="search-quick-title">${t('home.popular_stations')}</div>
         <div class="search-chips">
           ${POPULAR_CITIES.map((c, i) => `
             <div class="search-chip" data-quick="${i}">${c.name}</div>
@@ -498,11 +523,32 @@ function renderSearch() {
         </div>
 
         <div class="search-results">
-          ${state.searchQuery.length >= 2 && state.searchResults.length === 0 ? '<div class="search-empty">No matching stations found</div>' : ''}
+          ${state.searchQuery.length >= 2 && state.searchResults.length === 0 ? `<div class="search-empty">${t('home.no_matching_stations')}</div>` : ''}
           ${state.searchResults.map((r, i) => `
             <div class="search-result" data-idx="${i}">
               <div class="name">${r.name}</div>
               <div class="region">${[r.admin1, r.country].filter(Boolean).join(', ')}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderLangPicker() {
+  return `
+    <div class="search-overlay" id="lang-overlay">
+      <div class="search-panel lang-panel">
+        <div class="search-input-row">
+          <div style="font-size:14px;font-weight:700">Language / भाषा</div>
+          <button class="search-close" id="lang-close">${t('home.cancel')}</button>
+        </div>
+        <div class="lang-list">
+          ${LOCALES.map((l) => `
+            <div class="lang-row ${l.code === getLocale() ? 'active' : ''}" data-lang="${l.code}">
+              <span>${l.native}</span>
+              ${l.code === getLocale() ? ICONS.check('', 'currentColor') : ''}
             </div>
           `).join('')}
         </div>
@@ -519,6 +565,14 @@ function wireEvents() {
     if (e.target.id === 'search-overlay') closeSearch();
   });
   document.getElementById('btn-geo')?.addEventListener('click', useCurrentLocation);
+  document.getElementById('btn-lang')?.addEventListener('click', toggleLang);
+  document.getElementById('lang-close')?.addEventListener('click', toggleLang);
+  document.getElementById('lang-overlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'lang-overlay') toggleLang();
+  });
+  document.querySelectorAll('.lang-row').forEach((el) => {
+    el.addEventListener('click', () => chooseLang(el.dataset.lang));
+  });
   document.querySelectorAll('.search-chip').forEach((el) => {
     el.addEventListener('click', () => selectCity(POPULAR_CITIES[+el.dataset.quick]));
   });

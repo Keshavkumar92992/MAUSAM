@@ -1,4 +1,5 @@
 import { classify, TONE_COLOR } from './severity.js';
+import { t } from './i18n.js';
 
 const AIRPORT_CODES = {
   'new delhi': 'DEL', mumbai: 'BOM', bengaluru: 'BLR', bangalore: 'BLR', chennai: 'MAA',
@@ -7,6 +8,13 @@ const AIRPORT_CODES = {
 };
 function airportCode(city) {
   return AIRPORT_CODES[city.toLowerCase()] || city.slice(0, 3).toUpperCase();
+}
+
+// Threshold labels come from persona-config.json in English; look them up
+// in the shared status.* dictionary so tile/panel colors and translated
+// text never diverge from severity.js's classification.
+function st(label) {
+  return t('status.' + label);
 }
 
 function tile(label, value, unit, tone, statusLabel, pctValue, pctMax) {
@@ -41,15 +49,15 @@ function bestRunWindow(metrics) {
       bestStart = i;
     }
   }
-  if (bestStart === -1) return { text: 'None ideal today', tone: 'warn', note: 'Heat & rain risk all day' };
+  if (bestStart === -1) return { text: t('val.none_ideal'), tone: 'warn', note: t('val.heat_rain_all_day') };
   const start = new Date(hourly.time[bestStart]);
   const end = new Date(start.getTime() + 90 * 60000);
   const fmt = (d) => {
     let h = d.getHours(); const m = String(d.getMinutes()).padStart(2, '0');
-    const ap = h >= 12 ? 'PM' : 'AM'; h = ((h + 11) % 12) + 1;
+    h = ((h + 11) % 12) + 1;
     return `${h}:${m}`;
   };
-  return { text: `${fmt(start)}`, sub: `–${fmt(end)} ${end.getHours() >= 12 ? 'PM' : 'AM'}`, note: `Cool, ${Math.round(bestFeels)}° feels-like` };
+  return { text: `${fmt(start)}`, sub: `–${fmt(end)} ${end.getHours() >= 12 ? 'PM' : 'AM'}`, note: t('val.cool_feels', { temp: Math.round(bestFeels) }) };
 }
 
 export function buildPersonaView(id, personaDef, metrics, travel) {
@@ -61,49 +69,53 @@ export function buildPersonaView(id, personaDef, metrics, travel) {
       const uv = classify(M.uv_index, findThresholds(personaDef, 'uv_index'));
       const hum = classify(M.humidityNow, findThresholds(personaDef, 'humidity'));
       const maskNeeded = aqi.tone === 'bad' || aqi.tone === 'warn';
+      const uvPeak = uv.tone !== 'ok';
+      const pollenHigh = M.mocked.pollen_index >= 5;
+      const tipKey = uvPeak && pollenHigh ? 'tip.health.uv_pollen' : uvPeak ? 'tip.health.uv_only' : pollenHigh ? 'tip.health.pollen_only' : 'tip.health.plain';
       return {
-        summary: 'Air & exposure',
+        summary: t('summary.health'),
         tiles: [
-          tile('AQI (PM2.5)', M.aqi_pm25, 'AQI', aqi.tone, aqi.label, M.aqi_pm25, 300),
-          tile('Pollen', pollen.label, '', pollen.tone, M.mocked.pollen_note, M.mocked.pollen_index, 9),
-          tile('UV index', M.uv_index, 'of 11', uv.tone, uv.label, M.uv_index, 11),
-          tile('Humidity', M.humidityNow, '%', hum.tone, hum.label, M.humidityNow, 100),
+          tile(t('tile.aqi'), M.aqi_pm25, 'AQI', aqi.tone, st(aqi.label), M.aqi_pm25, 300),
+          tile(t('tile.pollen'), st(pollen.label), '', pollen.tone, M.mocked.pollen_note, M.mocked.pollen_index, 9),
+          tile(t('tile.uv'), M.uv_index, t('unit.of_11'), uv.tone, st(uv.label), M.uv_index, 11),
+          tile(t('tile.humidity'), M.humidityNow, '%', hum.tone, st(hum.label), M.humidityNow, 100),
         ],
         panel: {
-          title: 'Sensitive-group advisory', meta: 'Next 12 h',
+          title: t('panel.health_title'), meta: t('panel.health_meta'),
           rows: [
-            { label: 'Outdoor exposure', value: aqi.tone === 'bad' ? 'Limit' : aqi.tone === 'warn' ? 'Caution' : 'OK', note: 'Asthma, COPD, elderly, children', tone: aqi.tone },
-            { label: 'Mask recommended', value: maskNeeded ? 'N95' : 'Optional', note: maskNeeded ? 'Between peak traffic hours' : 'Air quality acceptable', tone: maskNeeded ? 'warn' : 'ok' },
-            { label: 'Indoor air', value: aqi.tone === 'bad' ? 'Purify' : 'Ventilate', note: 'Keep windows shut till late morning if hazy', tone: 'info' },
+            { label: t('row.outdoor_exposure'), value: aqi.tone === 'bad' ? t('val.limit') : aqi.tone === 'warn' ? t('val.caution') : t('val.ok'), note: t('row.outdoor_exposure_note'), tone: aqi.tone },
+            { label: t('row.mask_recommended'), value: maskNeeded ? t('val.n95') : t('val.optional'), note: maskNeeded ? t('row.mask_note_needed') : t('row.mask_note_optional'), tone: maskNeeded ? 'warn' : 'ok' },
+            { label: t('row.indoor_air'), value: aqi.tone === 'bad' ? t('val.purify') : t('val.ventilate'), note: t('row.indoor_air_note'), tone: 'info' },
           ],
         },
-        tip: `${M.conditionLabel} today${uv.tone !== 'ok' ? ' with a UV peak' : ''} — shift outdoor time to before 8 AM${M.mocked.pollen_index >= 5 ? ', and carry your inhaler if pollen-sensitive.' : '.'}`,
+        tip: t(tipKey, { condition: M.conditionLabel }),
       };
     }
     case 'fitness': {
       const run = bestRunWindow(M);
       const wind = classify(M.wind_speed, findThresholds(personaDef, 'wind_speed'));
       const heat = classify(M.feelsLikeMax, findThresholds(personaDef, 'feels_like_max'));
-      const hydration = M.feelsLikeMax > 40 ? { label: 'Very high', tone: 'bad', note: '+1000 ml per hour' }
-        : M.feelsLikeMax >= 33 ? { label: 'High', tone: 'warn', note: '+750 ml per hour' }
-        : { label: 'Normal', tone: 'ok', note: 'Standard intake' };
+      const hydration = M.feelsLikeMax > 40 ? { label: t('val.very_high'), tone: 'bad', note: t('val.ml_per_hour', { n: 1000 }) }
+        : M.feelsLikeMax >= 33 ? { label: t('val.high'), tone: 'warn', note: t('val.ml_per_hour', { n: 750 }) }
+        : { label: t('val.normal_intake'), tone: 'ok', note: t('val.standard_intake') };
+      const stormRisk = M.precip_prob_max24 > 50;
       return {
-        summary: 'Training window',
+        summary: t('summary.fitness'),
         tiles: [
-          tile('Best run window', run.text, run.sub || '', 'ok', run.note, 70, 100),
-          tile('Wind', M.wind_speed, 'km/h', wind.tone, wind.label, M.wind_speed, 30),
-          tile('Heat index', M.feelsLikeMax, '°C', heat.tone, heat.label, M.feelsLikeMax, 45),
-          tile('Hydration need', hydration.label, '', hydration.tone, hydration.note, M.feelsLikeMax, 45),
+          tile(t('tile.best_run_window'), run.text, run.sub || '', 'ok', run.note, 70, 100),
+          tile(t('tile.wind'), M.wind_speed, 'km/h', wind.tone, st(wind.label), M.wind_speed, 30),
+          tile(t('tile.heat_index'), M.feelsLikeMax, '°C', heat.tone, st(heat.label), M.feelsLikeMax, 45),
+          tile(t('tile.hydration'), hydration.label, '', hydration.tone, hydration.note, M.feelsLikeMax, 45),
         ],
         panel: {
-          title: 'Sun & session plan', meta: 'Today',
+          title: t('panel.fitness_title'), meta: t('panel.fitness_meta'),
           rows: [
-            { label: 'Sunrise', value: fmtClock(M.sunrise), note: 'Best light for a morning run', tone: 'info' },
-            { label: 'Sunset', value: fmtClock(M.sunset), note: 'Evening session cut-off', tone: 'info' },
-            { label: 'Evening window', value: M.precip_prob_max24 > 50 ? 'Storm risk after dusk' : 'Clear through evening', note: `Rain chance ${Math.round(M.precip_prob_max24)}% today`, tone: M.precip_prob_max24 > 50 ? 'warn' : 'ok' },
+            { label: t('row.sunrise'), value: fmtClock(M.sunrise), note: t('row.sunrise_note'), tone: 'info' },
+            { label: t('row.sunset'), value: fmtClock(M.sunset), note: t('row.sunset_note'), tone: 'info' },
+            { label: t('row.evening_window'), value: stormRisk ? t('val.storm_after_dusk') : t('val.clear_through_evening'), note: t('row.rain_chance_note', { pct: Math.round(M.precip_prob_max24) }), tone: stormRisk ? 'warn' : 'ok' },
           ],
         },
-        tip: `Heat builds fast after mid-morning. Keep tempo work in the early window and ${M.precip_prob_max24 > 50 ? 'cap the evening run short — storm risk builds after dusk.' : 'the evening stays clear for a longer run.'}`,
+        tip: t(stormRisk ? 'tip.fitness.storm' : 'tip.fitness.clear'),
       };
     }
     case 'beach': {
@@ -111,53 +123,56 @@ export function buildPersonaView(id, personaDef, metrics, travel) {
       const sea = classify(M.mocked.sea_temp_c, findThresholds(personaDef, 'sea_temp_c'));
       const flag = classify(M.mocked.safety_flag, findThresholds(personaDef, 'safety_flag'));
       const rip = classify(M.mocked.rip_current, findThresholds(personaDef, 'rip_current'));
+      const seaStateTone = wave.tone === 'ok' ? 'calm' : wave.tone === 'warn' ? 'choppy' : 'rough';
+      const flagKey = M.mocked.safety_flag === 'green' ? 'green' : M.mocked.safety_flag === 'yellow' ? 'yellow' : 'red';
       return {
         summary: M.city,
         tiles: [
-          tile('Wave height', M.mocked.wave_height_m, 'm', wave.tone, wave.label, M.mocked.wave_height_m, 2),
-          tile('Sea temp', M.mocked.sea_temp_c, '°C', sea.tone, sea.label, M.mocked.sea_temp_c, 32),
-          tile('Safety flag', cap(M.mocked.safety_flag), '', flag.tone, flag.label, 60, 100),
-          tile('Rip current', cap(M.mocked.rip_current), '', rip.tone, rip.label, rip.tone === 'bad' ? 90 : rip.tone === 'warn' ? 55 : 20, 100),
+          tile(t('tile.wave_height'), M.mocked.wave_height_m, 'm', wave.tone, st(wave.label), M.mocked.wave_height_m, 2),
+          tile(t('tile.sea_temp'), M.mocked.sea_temp_c, '°C', sea.tone, st(sea.label), M.mocked.sea_temp_c, 32),
+          tile(t('tile.safety_flag'), cap(M.mocked.safety_flag), '', flag.tone, st(flag.label), 60, 100),
+          tile(t('tile.rip_current'), cap(M.mocked.rip_current), '', rip.tone, st(rip.label), rip.tone === 'bad' ? 90 : rip.tone === 'warn' ? 55 : 20, 100),
         ],
         panel: {
-          title: 'Tide timings', meta: 'INCOIS · sample data',
+          title: t('panel.beach_title'), meta: t('panel.beach_meta'),
           rows: [
-            { label: 'High tide', value: fmtHour(M.mocked.high_tide), note: 'Best surf window before this', tone: 'info' },
-            { label: 'Low tide', value: fmtHour(M.mocked.low_tide), note: 'Wide beach, rock pools', tone: 'info' },
-            { label: 'Sea state', value: wave.tone === 'ok' ? 'Calm' : wave.tone === 'warn' ? 'Choppy' : 'Rough', note: `Wind ${M.wind_speed} km/h`, tone: wave.tone },
+            { label: t('row.high_tide'), value: fmtHour(M.mocked.high_tide), note: t('row.high_tide_note'), tone: 'info' },
+            { label: t('row.low_tide'), value: fmtHour(M.mocked.low_tide), note: t('row.low_tide_note'), tone: 'info' },
+            { label: t('row.sea_state'), value: t('val.' + seaStateTone), note: t('row.wind_note', { kmh: M.wind_speed }), tone: wave.tone },
           ],
         },
-        tip: `Surf the two hours before the ${fmtHour(M.mocked.high_tide)} high tide. ${cap(M.mocked.safety_flag)} flag today — ${M.mocked.safety_flag === 'green' ? 'safe to swim.' : M.mocked.safety_flag === 'yellow' ? 'stay within the patrolled stretch.' : 'no swimming advised.'}`,
+        tip: t('tip.beach.' + flagKey, { tide: fmtHour(M.mocked.high_tide) }),
       };
     }
     case 'travel': {
       const dest = travel?.destination;
       const originVis = M.visibility_km, originGusts = M.gustsMaxToday;
-      const flight = originVis < 1 || originGusts > 45 ? { tone: 'bad', label: 'High' } : originVis < 3 ? { tone: 'warn', label: 'Moderate' } : { tone: 'ok', label: 'Low' };
-      const destPrecip = dest ? classify(dest.precipProbMax, findThresholds(personaDef, 'dest_precip_prob')) : { tone: 'info', label: 'No saved trip' };
+      const flight = originVis < 1 || originGusts > 45 ? { tone: 'bad', label: t('status.High') } : originVis < 3 ? { tone: 'warn', label: t('status.Moderate') } : { tone: 'ok', label: t('status.Low') };
+      const destPrecip = dest ? classify(dest.precipProbMax, findThresholds(personaDef, 'dest_precip_prob')) : { tone: 'info', label: null };
       const tempDelta = dest ? Math.round(M.tempNow - dest.tempNow) : 0;
       const items = [];
-      if (dest && dest.precipProbMax > 50) items.push('raincoat');
-      if (dest && Math.abs(tempDelta) > 10) items.push('layers');
-      if (dest && dest.uvMax >= 8) items.push('sunscreen');
+      if (dest && dest.precipProbMax > 50) items.push(t('item.raincoat'));
+      if (dest && Math.abs(tempDelta) > 10) items.push(t('item.layers'));
+      if (dest && dest.uvMax >= 8) items.push(t('item.sunscreen'));
+      const savedCount = travel?.saved?.length || 0;
       return {
-        summary: `${travel?.saved?.length || 0} saved destination${(travel?.saved?.length || 0) === 1 ? '' : 's'}`,
+        summary: t('summary.travel_n', { n: savedCount, s: savedCount === 1 ? '' : 's' }),
         tiles: [
-          tile(`Flight risk · ${airportCode(M.city)}`, flight.label, '', flight.tone, `Visibility ${originVis} km`, originVis, 10),
-          tile('Rain at arrival', dest ? dest.precipProbMax : '—', dest ? '%' : '', destPrecip.tone, dest ? `${destPrecip.label} in ${dest.name}` : 'Add a destination below', dest?.precipProbMax || 0, 100),
-          tile('Temp swing', dest ? Math.abs(tempDelta) : '—', dest ? '°C' : '', 'info', dest ? `${M.city} ${M.tempNow}° → ${dest.name} ${dest.tempNow}°` : '—', Math.abs(tempDelta), 20),
-          tile('Packing', items.length, 'items', 'info', items.length ? cap(items.join(', ')) : 'Nothing critical', items.length, 3),
+          tile(t('tile.flight_risk', { code: airportCode(M.city) }), flight.label, '', flight.tone, t('val.visibility_km', { km: originVis }), originVis, 10),
+          tile(t('tile.rain_arrival'), dest ? dest.precipProbMax : '—', dest ? '%' : '', destPrecip.tone, dest ? t('val.condition_in', { condition: st(destPrecip.label), city: dest.name }) : t('val.add_destination'), dest?.precipProbMax || 0, 100),
+          tile(t('tile.temp_swing'), dest ? Math.abs(tempDelta) : '—', dest ? '°C' : '', 'info', dest ? t('val.temp_swing_note', { city: M.city, temp1: M.tempNow, dest: dest.name, temp2: dest.tempNow }) : '—', Math.abs(tempDelta), 20),
+          tile(t('tile.packing'), items.length, t('unit.items'), 'info', items.length ? cap(items.join(', ')) : t('val.nothing_critical'), items.length, 3),
         ],
         panel: {
-          title: 'Saved destinations', meta: 'Live',
+          title: t('panel.travel_title'), meta: t('panel.travel_meta'),
           rows: (travel?.saved || []).slice(0, 3).map((s) => ({
             label: s.name, value: s.tempNow != null ? `${s.tempNow}° ${s.condition}` : '…',
-            note: s.note || 'Loading…', tone: s.tone || 'info',
+            note: s.note || t('saved.loading'), tone: s.tone || 'info',
           })),
         },
         tip: dest
-          ? `Your saved trip to ${dest.name} shows ${dest.condition.toLowerCase()} at ${dest.tempNow}°. ${items.length ? `Pack ${items[0]}.` : 'No special packing needed.'}`
-          : 'Save a destination city to see arrival conditions and packing tips.',
+          ? t(items.length ? 'tip.travel.with_dest_pack' : 'tip.travel.with_dest_nopack', { dest: dest.name, condition: dest.condition.toLowerCase(), temp: dest.tempNow, item: items[0] })
+          : t('tip.travel.no_dest'),
       };
     }
     case 'family': {
@@ -165,7 +180,7 @@ export function buildPersonaView(id, personaDef, metrics, travel) {
       const morningVis = (M.hourly.visibility?.[morningIdx] ?? 8000) / 1000;
       const morningPrecip = M.hourly.precipitation_probability?.[morningIdx] ?? M.precip_prob_now;
       const morningFeels = M.hourly.apparent_temperature?.[morningIdx] ?? M.feelsLikeNow;
-      const commuteScore = morningVis < 2 || morningPrecip > 60 ? { tone: 'bad', label: 'Poor' } : morningVis < 4 || morningPrecip > 30 ? { tone: 'warn', label: 'Fair' } : { tone: 'ok', label: 'Good' };
+      const commuteScore = morningVis < 2 || morningPrecip > 60 ? { tone: 'bad', label: t('status.Poor') } : morningVis < 4 || morningPrecip > 30 ? { tone: 'warn', label: t('val.fair') } : { tone: 'ok', label: t('status.Good') };
       const idx1500 = findHourAt(M, 15);
       const precip1500 = M.hourly.precipitation_probability?.[idx1500] ?? M.precip_prob_max24;
       const rain3pm = classify(precip1500, findThresholds(personaDef, 'precip_prob_1500'));
@@ -178,24 +193,24 @@ export function buildPersonaView(id, personaDef, metrics, travel) {
       playtime = Math.max(0, Math.min(10, playtime));
       const playTone = playtime >= 7 ? 'ok' : playtime >= 4 ? 'warn' : 'bad';
       return {
-        summary: 'School day',
+        summary: t('summary.family'),
         tiles: [
-          tile('School commute', commuteScore.label, '', commuteScore.tone, `${M.conditionLabel}, ${Math.round(morningFeels)}° at 7:30 AM`, commuteScore.tone === 'ok' ? 25 : commuteScore.tone === 'warn' ? 55 : 85, 100),
-          tile('Rain by 3 PM', Math.round(precip1500), '%', rain3pm.tone, rain3pm.label, precip1500, 100),
-          tile('Playtime index', playtime, 'of 10', playTone, playTone === 'ok' ? 'Good for outdoor play' : playTone === 'warn' ? 'Limit outdoor play' : 'Indoor play advised', playtime, 10),
-          tile('AQI for kids', M.aqi_pm25, 'AQI', aqiKids.tone, aqiKids.label, M.aqi_pm25, 300),
+          tile(t('tile.school_commute'), commuteScore.label, '', commuteScore.tone, t('val.commute_note', { condition: M.conditionLabel, temp: Math.round(morningFeels) }), commuteScore.tone === 'ok' ? 25 : commuteScore.tone === 'warn' ? 55 : 85, 100),
+          tile(t('tile.rain_3pm'), Math.round(precip1500), '%', rain3pm.tone, st(rain3pm.label), precip1500, 100),
+          tile(t('tile.playtime'), playtime, t('unit.of_10'), playTone, t(playTone === 'ok' ? 'val.good_outdoor' : playTone === 'warn' ? 'val.limit_outdoor' : 'val.indoor_advised'), playtime, 10),
+          tile(t('tile.aqi_kids'), M.aqi_pm25, 'AQI', aqiKids.tone, st(aqiKids.label), M.aqi_pm25, 300),
         ],
         panel: {
-          title: 'Day plan for the family', meta: 'Warnings included',
+          title: t('panel.family_title'), meta: t('panel.family_meta'),
           rows: [
-            { label: 'Morning drop-off', value: '7:30 AM', note: commuteScore.tone === 'ok' ? 'Clear conditions' : 'Leave a few minutes early', tone: commuteScore.tone },
-            { label: 'Afternoon pick-up', value: '3:10 PM', note: precip1500 > 50 ? 'Showers likely — carry umbrellas' : 'Dry conditions expected', tone: precip1500 > 50 ? 'bad' : 'ok' },
-            { label: 'Evening outdoors', value: 'After 6 PM', note: `Temperature settles to ${M.tempMin}°`, tone: playTone === 'bad' ? 'warn' : 'ok' },
+            { label: t('row.morning_dropoff'), value: '7:30 AM', note: commuteScore.tone === 'ok' ? t('row.dropoff_clear') : t('row.dropoff_early'), tone: commuteScore.tone },
+            { label: t('row.afternoon_pickup'), value: '3:10 PM', note: precip1500 > 50 ? t('row.pickup_rain') : t('row.pickup_dry'), tone: precip1500 > 50 ? 'bad' : 'ok' },
+            { label: t('row.evening_outdoors'), value: t('val.after_6pm'), note: t('row.evening_temp_note', { temp: M.tempMin }), tone: playTone === 'bad' ? 'warn' : 'ok' },
           ],
         },
         tip: precip1500 > 60
-          ? `Send raincoats today: a ${Math.round(precip1500)}% chance of showers overlaps school pick-up.`
-          : `Good conditions for the school run today. ${playTone !== 'ok' ? 'Keep outdoor play shorter this afternoon.' : 'Outdoor play is fine after school.'}`,
+          ? t('tip.family.rain', { pct: Math.round(precip1500) })
+          : t(playTone !== 'ok' ? 'tip.family.clear_play' : 'tip.family.clear_ok'),
       };
     }
     case 'agri': {
@@ -203,51 +218,53 @@ export function buildPersonaView(id, personaDef, metrics, travel) {
       const rain48 = classify(M.rain_48h_mm, findThresholds(personaDef, 'rain_48h_mm'));
       const frost = classify(M.min_temp_c, findThresholds(personaDef, 'min_temp_c'));
       const gusts = classify(M.gustsMaxToday, findThresholds(personaDef, 'gusts_kmh'));
+      const holdIrrigation = M.rain_48h_mm >= 15;
+      const postponeSpray = M.gustsMaxToday > 30;
       return {
         summary: M.city,
         tiles: [
-          tile('Soil moisture', M.soil_moisture_pct, '% vol', soil.tone, soil.label, M.soil_moisture_pct, 100),
-          tile('Rainfall 48 h', M.rain_48h_mm, 'mm', rain48.tone, rain48.label, M.rain_48h_mm, 60),
-          tile('Frost risk', frost.label, '', frost.tone, `Min temp ${M.min_temp_c}°C`, Math.max(0, 20 - M.min_temp_c) * 5, 100),
-          tile('Wind gusts', M.gustsMaxToday, 'km/h', gusts.tone, gusts.label, M.gustsMaxToday, 60),
+          tile(t('tile.soil_moisture'), M.soil_moisture_pct, t('unit.pct_vol'), soil.tone, st(soil.label), M.soil_moisture_pct, 100),
+          tile(t('tile.rainfall_48h'), M.rain_48h_mm, 'mm', rain48.tone, st(rain48.label), M.rain_48h_mm, 60),
+          tile(t('tile.frost_risk'), st(frost.label), '', frost.tone, t('val.min_temp_note', { temp: M.min_temp_c }), Math.max(0, 20 - M.min_temp_c) * 5, 100),
+          tile(t('tile.wind_gusts'), M.gustsMaxToday, 'km/h', gusts.tone, st(gusts.label), M.gustsMaxToday, 60),
         ],
         panel: {
-          title: 'Kisan advisory', meta: 'Derived · not IMD Agromet',
+          title: t('panel.agri_title'), meta: t('panel.agri_meta'),
           rows: [
-            { label: 'Irrigation', value: M.rain_48h_mm >= 15 ? 'Hold 2 days' : 'As scheduled', note: `${M.rain_48h_mm} mm rain expected next 48 h`, tone: M.rain_48h_mm >= 15 ? 'ok' : 'info' },
-            { label: 'Sowing window', value: soil.tone === 'ok' ? 'Favourable' : 'Wait', note: 'Soil moisture and temperature', tone: soil.tone },
-            { label: 'Spray schedule', value: M.gustsMaxToday > 30 ? 'Postpone' : 'Proceed', note: 'Gusts above 30 km/h cause drift', tone: M.gustsMaxToday > 30 ? 'bad' : 'ok' },
+            { label: t('row.irrigation'), value: holdIrrigation ? t('val.hold_2_days') : t('val.as_scheduled'), note: t('row.irrigation_note', { mm: M.rain_48h_mm }), tone: holdIrrigation ? 'ok' : 'info' },
+            { label: t('row.sowing_window'), value: soil.tone === 'ok' ? t('val.favourable') : t('val.wait'), note: t('row.sowing_note'), tone: soil.tone },
+            { label: t('row.spray_schedule'), value: postponeSpray ? t('val.postpone') : t('val.proceed'), note: t('row.spray_note'), tone: postponeSpray ? 'bad' : 'ok' },
           ],
         },
-        tip: M.rain_48h_mm >= 15
-          ? `Hold irrigation — ${M.rain_48h_mm} mm of rain covers this cycle. ${M.gustsMaxToday > 30 ? 'Reschedule spraying when gusts subside.' : ''}`
-          : `Soil moisture is ${soil.label.toLowerCase()}. ${M.gustsMaxToday > 30 ? 'Delay spraying — gusts exceed 30 km/h.' : 'Conditions are workable today.'}`,
+        tip: holdIrrigation
+          ? t(postponeSpray ? 'tip.agri.hold_postpone' : 'tip.agri.hold_only', { mm: M.rain_48h_mm })
+          : t(postponeSpray ? 'tip.agri.soil_postpone' : 'tip.agri.soil_only', { soil: st(soil.label).toLowerCase() }),
       };
     }
     case 'commute': {
       const vis = classify(M.visibility_km, findThresholds(personaDef, 'visibility_km'));
-      const spray = M.precip_prob_max24 > 60 ? { tone: 'bad', label: 'Likely' } : M.precip_prob_max24 > 30 ? { tone: 'warn', label: 'Possible' } : { tone: 'ok', label: 'Unlikely' };
+      const spray = M.precip_prob_max24 > 60 ? { tone: 'bad', label: t('val.likely') } : M.precip_prob_max24 > 30 ? { tone: 'warn', label: t('status.Possible') } : { tone: 'ok', label: t('status.Unlikely') };
       const delay = M.mocked.traffic_delay_min + (spray.tone === 'bad' ? 12 : spray.tone === 'warn' ? 5 : 0);
-      const hazard = M.gustsMaxToday > 40 ? { tone: 'bad', label: 'Storm' } : M.visibility_km < 1 ? { tone: 'bad', label: 'Fog' } : { tone: 'ok', label: 'Clear' };
+      const hazard = M.gustsMaxToday > 40 ? { tone: 'bad', label: t('val.storm') } : M.visibility_km < 1 ? { tone: 'bad', label: t('val.fog') } : { tone: 'ok', label: t('status.Clear') };
       return {
         summary: M.city,
         tiles: [
-          tile('Visibility', M.visibility_km, 'km', vis.tone, vis.label, M.visibility_km, 10),
-          tile('Road spray', spray.label, '', spray.tone, M.precip_prob_max24 > 60 ? 'Waterlogging risk' : 'Roads mostly dry', M.precip_prob_max24, 100),
-          tile('Delay added', `+${delay}`, 'min', delay > 20 ? 'warn' : 'ok', `vs usual commute`, delay, 40),
-          tile('Fog / storm', hazard.label, '', hazard.tone, hazard.tone === 'bad' ? 'Plan an alternative route' : 'No hazard expected', hazard.tone === 'bad' ? 85 : 15, 100),
+          tile(t('tile.visibility'), M.visibility_km, 'km', vis.tone, st(vis.label), M.visibility_km, 10),
+          tile(t('tile.road_spray'), spray.label, '', spray.tone, M.precip_prob_max24 > 60 ? t('val.waterlogging_risk') : t('val.roads_dry'), M.precip_prob_max24, 100),
+          tile(t('tile.delay_added'), `+${delay}`, 'min', delay > 20 ? 'warn' : 'ok', t('val.vs_usual_commute'), delay, 40),
+          tile(t('tile.fog_storm'), hazard.label, '', hazard.tone, hazard.tone === 'bad' ? t('val.plan_alt_route') : t('val.no_hazard'), hazard.tone === 'bad' ? 85 : 15, 100),
         ],
         panel: {
-          title: 'Route conditions', meta: 'Weather + traffic overlay',
+          title: t('panel.commute_title'), meta: t('panel.commute_meta'),
           rows: [
-            { label: 'Main route', value: spray.tone === 'ok' ? 'Normal' : 'Slow', note: vis.tone !== 'ok' ? 'Reduced visibility' : 'Clear roads', tone: vis.tone },
-            { label: 'Low-lying underpass', value: spray.tone === 'bad' ? 'Avoid' : 'Passable', note: 'Historic waterlogging point', tone: spray.tone },
-            { label: 'Transit alternative', value: 'Normal', note: 'Best option during squalls', tone: 'ok' },
+            { label: t('row.main_route'), value: spray.tone === 'ok' ? t('val.normal') : t('val.slow'), note: vis.tone !== 'ok' ? t('row.reduced_visibility') : t('row.clear_roads'), tone: vis.tone },
+            { label: t('row.underpass'), value: spray.tone === 'bad' ? t('val.avoid') : t('val.passable'), note: t('row.underpass_note'), tone: spray.tone },
+            { label: t('row.transit_alt'), value: t('val.normal'), note: t('row.transit_note'), tone: 'ok' },
           ],
         },
         tip: hazard.tone === 'bad'
-          ? `${hazard.label} risk today — add ${delay} minutes and consider a transit alternative.`
-          : `Smooth commute expected. ${spray.tone !== 'ok' ? 'Watch for slick roads during showers.' : ''}`,
+          ? t('tip.commute.hazard', { hazard: hazard.label, delay })
+          : t(spray.tone !== 'ok' ? 'tip.commute.smooth_watch' : 'tip.commute.smooth_ok'),
       };
     }
     default:

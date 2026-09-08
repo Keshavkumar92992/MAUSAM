@@ -1,4 +1,5 @@
 // Modern, crisp SVG vector icons for Mausam weather app
+import { t } from './i18n.js';
 
 export const ICONS = {
   home: (cls = '', fill = 'currentColor') => `
@@ -57,10 +58,10 @@ export const ICONS = {
 
 export function renderBottomNav(activeTab, alertCount = 0, isDark = false) {
   const tabs = [
-    { id: 'home', label: 'Home', href: './index.html', icon: ICONS.home },
-    { id: 'radar', label: 'Radar', href: './radar.html', icon: ICONS.radar },
-    { id: 'alerts', label: 'Alerts', href: './alerts.html', icon: ICONS.alerts, badge: alertCount },
-    { id: 'saved', label: 'Saved', href: './saved.html', icon: ICONS.saved },
+    { id: 'home', label: t('nav.home'), href: './index.html', icon: ICONS.home },
+    { id: 'radar', label: t('nav.radar'), href: './radar.html', icon: ICONS.radar },
+    { id: 'alerts', label: t('nav.alerts'), href: './alerts.html', icon: ICONS.alerts, badge: alertCount },
+    { id: 'saved', label: t('nav.saved'), href: './saved.html', icon: ICONS.saved },
   ];
 
   return `

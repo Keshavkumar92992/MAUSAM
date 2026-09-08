@@ -2,6 +2,8 @@ import { geocodeCity, fetchDestinationSummary, getCurrentLocation } from './weat
 import { getSavedCities, addSavedCity, removeSavedCity } from './travel.js';
 import { loadState, saveState } from './utils.js';
 import { renderBottomNav, renderStatusBar, ICONS } from './icons.js';
+import { t } from './i18n.js';
+import './i18nStrings.js';
 
 const POPULAR_SUGGESTIONS = [
   { name: 'Mumbai, Maharashtra', lat: 19.0760, lon: 72.8777 },
@@ -30,27 +32,27 @@ function render() {
     <div class="content">
       <div class="header-block">
         <div class="wordmark-row">
-          <div class="wordmark"><span class="en">Saved</span><span class="hi">सहेजे गए</span></div>
+          <div class="wordmark"><span class="en">${t('saved.title')}</span></div>
         </div>
-        <div class="location-sub" style="margin-bottom:0">Cities and stations you are tracking</div>
+        <div class="location-sub" style="margin-bottom:0">${t('saved.subtitle')}</div>
       </div>
       <div class="section-body">
         <div class="saved-list" id="saved-list">
-          ${state.cities.length === 0 ? `<div class="location-sub" style="text-align:center;padding:24px 0">No saved cities yet.<br>Tap below to add your favorite destinations.</div>` : ''}
+          ${state.cities.length === 0 ? `<div class="location-sub" style="text-align:center;padding:24px 0">${t('saved.empty')}</div>` : ''}
           ${state.cities.map((c, i) => `
-            <div class="saved-card" data-idx="${i}" title="Tap to select as active city">
+            <div class="saved-card" data-idx="${i}" title="${t('saved.tap_hint')}">
               <div class="saved-card-main">
-                <div class="saved-card-name">${c.name}${c.name.includes(state.currentCity) ? '<span class="current-city-tag">ACTIVE</span>' : ''}</div>
-                <div class="saved-card-note">${c.status || 'Loading…'}</div>
+                <div class="saved-card-name">${c.name}${c.name.includes(state.currentCity) ? `<span class="current-city-tag">${t('saved.active_tag')}</span>` : ''}</div>
+                <div class="saved-card-note">${c.status || t('saved.loading')}</div>
               </div>
               <div class="saved-card-temp">${c.tempNow != null ? c.tempNow + '°' : '—'}</div>
               <button class="saved-remove" data-remove="${i}" title="Remove city" aria-label="Remove city">✕</button>
             </div>
           `).join('')}
         </div>
-        <div class="add-city-card" id="btn-add-city" style="margin-top:12px">+ Add a city or station</div>
+        <div class="add-city-card" id="btn-add-city" style="margin-top:12px">${t('saved.add_city')}</div>
       </div>
-      <div class="footer-note">India Meteorological Department<br>Ministry of Earth Sciences, Government of India</div>
+      <div class="footer-note">${t('home.footer_dept')}<br>${t('home.footer_ministry')}</div>
       ${renderBottomNav('saved', 0, false)}
     </div>
     <div class="home-indicator"></div>
@@ -64,15 +66,15 @@ function renderSearch() {
     <div class="search-overlay" id="search-overlay">
       <div class="search-panel">
         <div class="search-input-row">
-          <input id="search-input" class="search-input" placeholder="Search city…" value="${state.searchQuery}" autocomplete="off">
-          <button class="search-close" id="search-close">Cancel</button>
+          <input id="search-input" class="search-input" placeholder="${t('home.search_placeholder')}" value="${state.searchQuery}" autocomplete="off">
+          <button class="search-close" id="search-close">${t('home.cancel')}</button>
         </div>
 
         <button class="geo-btn" id="btn-geo" ${window.isSecureContext ? '' : 'disabled title="Needs a secure (https) connection — works once this app is deployed"'}>
-          ${ICONS.location('', 'currentColor')} ${window.isSecureContext ? 'Add My Current Location' : 'Location needs HTTPS (unavailable here)'}
+          ${ICONS.location('', 'currentColor')} ${window.isSecureContext ? t('home.add_current_location') : t('home.needs_https')}
         </button>
 
-        <div class="search-quick-title">SUGGESTED DESTINATIONS</div>
+        <div class="search-quick-title">${t('saved.suggested')}</div>
         <div class="search-chips">
           ${POPULAR_SUGGESTIONS.map((c, i) => `
             <div class="search-chip" data-sugg="${i}">${c.name.split(',')[0]}</div>
@@ -80,7 +82,7 @@ function renderSearch() {
         </div>
 
         <div class="search-results">
-          ${state.searchQuery.length >= 2 && state.searchResults.length === 0 ? '<div class="search-empty">No matches found</div>' : ''}
+          ${state.searchQuery.length >= 2 && state.searchResults.length === 0 ? `<div class="search-empty">${t('saved.no_matches')}</div>` : ''}
           ${state.searchResults.map((r, i) => `
             <div class="search-result" data-idx="${i}">
               <div class="name">${r.name}</div>
@@ -145,7 +147,7 @@ function wire() {
 async function useCurrentLocationAsSaved() {
   const geoBtn = document.getElementById('btn-geo');
   if (!window.isSecureContext) return;
-  if (geoBtn) geoBtn.textContent = 'Locating…';
+  if (geoBtn) geoBtn.textContent = t('home.locating');
   try {
     const place = await getCurrentLocation();
     addSavedCity({ name: `${place.name}${place.admin1 ? ', ' + place.admin1 : ''}`, lat: place.lat, lon: place.lon });
@@ -153,8 +155,8 @@ async function useCurrentLocationAsSaved() {
     render();
     await loadCities();
   } catch (err) {
-    if (geoBtn) geoBtn.textContent = err.message || 'Could not get your location';
-    setTimeout(() => { if (geoBtn) geoBtn.textContent = 'Add My Current Location'; }, 3000);
+    if (geoBtn) geoBtn.textContent = err.message || t('home.needs_https');
+    setTimeout(() => { if (geoBtn) geoBtn.textContent = t('home.add_current_location'); }, 3000);
   }
 }
 
@@ -176,7 +178,7 @@ function onSearchInput(e) {
 
 async function loadCities() {
   const saved = getSavedCities();
-  state.cities = saved.map((c) => ({ ...c, tempNow: null, status: 'Loading…' }));
+  state.cities = saved.map((c) => ({ ...c, tempNow: null, status: t('saved.loading') }));
   render();
   await Promise.all(
     saved.map(async (c, i) => {
@@ -184,7 +186,7 @@ async function loadCities() {
         const s = await fetchDestinationSummary(c.lat, c.lon);
         state.cities[i] = { ...c, tempNow: s.tempNow, status: s.condition };
       } catch {
-        state.cities[i] = { ...c, tempNow: null, status: 'Unavailable' };
+        state.cities[i] = { ...c, tempNow: null, status: t('saved.unavailable') };
       }
       render();
     })

@@ -1,4 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300;400;500;600;700&family=Noto+Serif+Devanagari:wght@500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300;400;500;600;700&family=Noto+Serif+Devanagari:wght@500;600&family=Noto+Sans+Bengali:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600;700&display=swap');
+
+/* Hindi/Bengali/Tamil script fallbacks — the base font stack only covers
+   Latin + Devanagari, so Bengali/Tamil text would fall back to a system
+   serif and look inconsistent without these. */
+:lang(hi){font-family:'Noto Sans','Noto Serif Devanagari',system-ui,sans-serif}
+:lang(bn){font-family:'Noto Sans Bengali','Noto Sans',system-ui,sans-serif}
+:lang(ta){font-family:'Noto Sans Tamil','Noto Sans',system-ui,sans-serif}
 
 :root{
   --ink:#171A1C;
@@ -151,6 +158,16 @@ input{font-family:inherit}
   color:var(--ink);transition:background .15s;
 }
 .icon-btn:hover{background:rgba(255,255,255,.95)}
+.lang-btn{width:auto;padding:0 10px;font-size:11px;font-weight:700;letter-spacing:.03em}
+.lang-panel{gap:2px}
+.lang-list{margin-top:4px}
+.lang-row{
+  display:flex;align-items:center;justify-content:space-between;padding:14px 4px;
+  border-top:1px solid rgba(23,26,28,.07);font-size:14px;font-weight:600;cursor:pointer;
+}
+.lang-row:first-of-type{border-top:none}
+.lang-row.active{color:var(--ok)}
+.lang-row svg{width:16px;height:16px}
 
 .location-row{display:flex;align-items:center;gap:6px;margin-bottom:2px;cursor:pointer;user-select:none}
 .location-dot{width:6px;height:6px;border-radius:3px;background:var(--bad)}

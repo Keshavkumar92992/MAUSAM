@@ -3,6 +3,8 @@ import { buildMetrics } from './metrics.js';
 import { generateAlerts } from './alertLogic.js';
 import { loadState, fmtTime } from './utils.js';
 import { renderBottomNav, renderStatusBar } from './icons.js';
+import { t } from './i18n.js';
+import './i18nStrings.js';
 
 const DEFAULT_CITY = { name: 'New Delhi', admin1: 'Delhi', country: 'India', lat: 28.5822, lon: 77.2 };
 const root = document.getElementById('app-root');
@@ -17,17 +19,17 @@ function shell(inner, alertCount = 0) {
     <div class="content">
       <div class="header-block">
         <div class="wordmark-row">
-          <div class="wordmark"><span class="en">Alerts</span><span class="hi">चेतावनी</span></div>
+          <div class="wordmark"><span class="en">${t('alerts.title')}</span></div>
         </div>
         <a class="location-row" href="./index.html" style="text-decoration:none;color:inherit" title="Back to Home">
           <span class="location-dot"></span>
           <span class="location-city">${city.name}${city.admin1 ? ', ' + city.admin1 : ''}</span>
           <span class="location-caret">▾</span>
         </a>
-        <div class="location-sub">Derived from Open-Meteo thresholds · not official IMD warnings · ${fmtTime(new Date())} IST</div>
+        <div class="location-sub">${t('alerts.not_official')} · ${fmtTime(new Date())} IST</div>
       </div>
       <div class="section-body">${inner}</div>
-      <div class="footer-note">India Meteorological Department<br>Ministry of Earth Sciences, Government of India</div>
+      <div class="footer-note">${t('home.footer_dept')}<br>${t('home.footer_ministry')}</div>
       ${renderBottomNav('alerts', alertCount, false)}
     </div>
     <div class="home-indicator"></div>
@@ -35,7 +37,7 @@ function shell(inner, alertCount = 0) {
 }
 
 function renderLoading() {
-  shell(`<div style="padding:40px 4px;text-align:center;font-size:13px;color:var(--ink-secondary)">Checking meteorological advisories…</div>`);
+  shell(`<div style="padding:40px 4px;text-align:center;font-size:13px;color:var(--ink-secondary)">${t('alerts.checking')}</div>`);
 }
 
 function renderAlerts(alerts) {
@@ -43,8 +45,8 @@ function renderAlerts(alerts) {
     shell(`
       <div class="no-alerts-card">
         <div class="no-alerts-badge">✓</div>
-        <div class="no-alerts-title">No active meteorological alerts</div>
-        <div class="no-alerts-sub">Atmospheric and air quality parameters in ${city.name} are within normal thresholds.</div>
+        <div class="no-alerts-title">${t('alerts.none_title')}</div>
+        <div class="no-alerts-sub">${t('alerts.none_sub', { city: city.name })}</div>
       </div>
     `, 0);
     return;
@@ -66,7 +68,7 @@ function renderAlerts(alerts) {
 }
 
 function renderError() {
-  shell(`<div class="error-card">IMD feed unavailable — could not check current alerts.<br>Please check your connection and retry.</div>`, 0);
+  shell(`<div class="error-card">${t('alerts.feed_error')}</div>`, 0);
 }
 
 async function init() {

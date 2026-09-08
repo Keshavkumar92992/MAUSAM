@@ -1,11 +1,30 @@
 import { loadState } from './utils.js';
 import { renderBottomNav, renderStatusBar } from './icons.js';
+import { t as tr } from './i18n.js';
+import './i18nStrings.js';
 
 const statusWrap = document.getElementById('status-bar-wrap');
 if (statusWrap) statusWrap.innerHTML = renderStatusBar(true);
 
 const navWrap = document.getElementById('nav-wrap');
 if (navWrap) navWrap.innerHTML = renderBottomNav('radar', 0, true);
+
+// Static labels baked into radar.html — set from JS so they follow the
+// selected language instead of always showing English/hardcoded Hindi.
+document.querySelector('.radar-title .en').textContent = tr('radar.title');
+document.querySelector('.radar-title .hi')?.remove();
+document.querySelector('.radar-back').textContent = tr('radar.back_home');
+document.querySelectorAll('.layer-chip').forEach((el) => {
+  const key = { rain: 'radar.layer_rain', cloud: 'radar.layer_cloud', lightning: 'radar.layer_lightning', wind: 'radar.layer_wind' }[el.dataset.layer];
+  if (key) el.textContent = tr(key);
+});
+document.querySelector('.range-badge').textContent = tr('radar.range');
+const sliderTicks = document.querySelectorAll('.slider-ticks span');
+if (sliderTicks[0]) sliderTicks[0].textContent = tr('radar.minus30');
+if (sliderTicks[1]) sliderTicks[1].textContent = tr('radar.now');
+if (sliderTicks[2]) sliderTicks[2].textContent = tr('radar.plus2h');
+document.querySelector('.nowcast-eyebrow').textContent = tr('radar.nowcast_title');
+document.getElementById('radar-sub-prefix').textContent = tr('radar.simulated');
 
 const CELLS = [
   { lon: 76.4, lat: 27.6, r: 62, i: 3, vx: 0.0055, vy: 0.0032, grow: 0.004 },
@@ -48,7 +67,7 @@ function stampFor(mins) {
   base.setMinutes(base.getMinutes() + mins);
   const h = base.getHours(), m = String(base.getMinutes()).padStart(2, '0');
   const ap = h >= 12 ? 'PM' : 'AM', hh = ((h + 11) % 12) + 1;
-  return (mins <= 0 ? 'observed ' : 'forecast ') + hh + ':' + m + ' ' + ap;
+  return (mins <= 0 ? tr('radar.observed') + ' ' : tr('radar.forecast') + ' ') + hh + ':' + m + ' ' + ap;
 }
 
 function waitForSize(el) {
@@ -193,23 +212,23 @@ function draw() {
   });
 
   const LEG = {
-    rain: ['RAINFALL mm/h', 'linear-gradient(90deg,#4FB8C9,#3E8FD8,#7A5AA8,#C2452D)', ['2.5', '15', '65+']],
-    cloud: ['CLOUD COVER %', 'linear-gradient(90deg,rgba(255,255,255,.18),rgba(255,255,255,.55),rgba(255,255,255,.92))', ['20', '60', '100']],
-    lightning: ['STRIKES / 10 MIN', 'linear-gradient(90deg,#F2C86A,#E2A350,#C2452D)', ['1', '12', '40+']],
-    wind: ['GUSTS km/h', 'linear-gradient(90deg,#4FB8C9,#7A5AA8,#C2452D)', ['20', '45', '70+']],
+    rain: [tr('radar.legend_rain'), 'linear-gradient(90deg,#4FB8C9,#3E8FD8,#7A5AA8,#C2452D)', ['2.5', '15', '65+']],
+    cloud: [tr('radar.legend_cloud'), 'linear-gradient(90deg,rgba(255,255,255,.18),rgba(255,255,255,.55),rgba(255,255,255,.92))', ['20', '60', '100']],
+    lightning: [tr('radar.legend_lightning'), 'linear-gradient(90deg,#F2C86A,#E2A350,#C2452D)', ['1', '12', '40+']],
+    wind: [tr('radar.legend_wind'), 'linear-gradient(90deg,#4FB8C9,#7A5AA8,#C2452D)', ['20', '45', '70+']],
   }[layer];
   document.getElementById('legTitle').textContent = LEG[0];
   document.getElementById('legRamp').style.background = LEG[1];
   document.getElementById('legTicks').innerHTML = LEG[2].map((v) => '<span>' + v + '</span>').join('');
   document.getElementById('stamp').textContent = stampFor(t);
-  const lead = t <= 0 ? 'now' : 'in ' + t + ' min';
+  const lead = t <= 0 ? tr('radar.lead_now') : tr('radar.lead_in_min', { n: t });
   document.getElementById('cellText').textContent = layer === 'wind'
-    ? 'Squall line approaching from the south-west; gusts of 40–50 km/h expected over the region ' + lead + '.'
+    ? tr('radar.cell_wind', { lead })
     : layer === 'lightning'
-    ? 'Cloud-to-ground lightning detected south-west of the region — strikes rising over the last 10 minutes.'
+    ? tr('radar.cell_lightning')
     : layer === 'cloud'
-    ? 'Dense convective cloud mass building over the north-west, tops above 12 km.'
-    : 'Storm cell moving north-east at 28 km/h. Moderate to heavy rain likely ' + lead + '.';
+    ? tr('radar.cell_cloud')
+    : tr('radar.cell_rain', { lead });
 }
 
 const slider = document.getElementById('time');

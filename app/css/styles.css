@@ -1311,3 +1311,94 @@ input{font-family:inherit}
   .explain-card{border-radius:26px;margin-bottom:24px}
   .explain-overlay{align-items:center}
 }
+
+
+/* ---------- ask by speaking ----------
+   The way in: a full-width button, not another icon tucked into the text
+   row. Someone who opened the assistant because typing is the problem
+   should not have to find a 28px microphone to escape the keyboard. */
+.ask-talk{
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  width:100%;margin:2px 0 10px;padding:13px;border-radius:14px;
+  background:var(--chip-on-bg);color:var(--chip-on-ink);
+  font-size:14px;font-weight:700;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+}
+.ask-talk svg{width:18px;height:18px}
+.ask-talk:active{transform:scale(.985)}
+
+.conv-overlay{
+  position:fixed;inset:0;z-index:80;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+  padding:32px 26px calc(32px + env(safe-area-inset-bottom, 0px));
+  background:var(--page);text-align:center;
+}
+
+/* One element that says which of the three things is happening, because a
+   caption alone is too slow to read while you are mid-sentence. */
+.conv-orb{
+  position:relative;width:132px;height:132px;flex:none;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+}
+.conv-orb-core{
+  position:absolute;inset:22px;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,#7FB2E5,#2C6EA8 70%);
+  box-shadow:0 8px 30px rgba(44,110,168,.35);
+}
+.conv-orb-ring{
+  position:absolute;inset:0;border-radius:50%;
+  border:2px solid var(--info);opacity:0;
+}
+[data-state="listening"] .conv-orb-ring{animation:convPulse 1.9s ease-out infinite}
+[data-state="listening"] .conv-orb-core{animation:convBreathe 1.9s ease-in-out infinite}
+@keyframes convPulse{
+  0%{transform:scale(.72);opacity:.75}
+  100%{transform:scale(1.12);opacity:0}
+}
+@keyframes convBreathe{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.06)}
+}
+/* Thinking spins; speaking swells. Different motions, so the state is
+   readable from across a field without reading the caption. */
+[data-state="thinking"] .conv-orb-ring{
+  opacity:.9;border-color:transparent;border-top-color:var(--info);
+  animation:convSpin 1s linear infinite;
+}
+@keyframes convSpin{to{transform:rotate(360deg)}}
+[data-state="speaking"] .conv-orb-core{
+  background:radial-gradient(circle at 38% 32%,#8FD6B4,#2E7D5B 70%);
+  animation:convTalk .9s ease-in-out infinite;
+}
+@keyframes convTalk{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.09)}
+}
+[data-state="idle"] .conv-orb-core{background:radial-gradient(circle at 38% 32%,#B9C6D8,#7E8A9B 70%)}
+
+.conv-transcript{
+  min-height:26px;font-size:17px;font-weight:600;line-height:1.35;color:var(--ink);
+  max-width:22em;
+}
+.conv-caption{font-size:14.5px;line-height:1.5;color:var(--ink-secondary);max-width:24em}
+.conv-hint{font-size:12px;line-height:1.5;color:var(--ink-tertiary);max-width:24em}
+.conv-end{
+  margin-top:8px;padding:12px 28px;border-radius:999px;
+  background:var(--chip);border:1px solid var(--chip-border);color:var(--chip-ink);
+  font-size:14px;font-weight:700;
+}
+.conv-end:active{transform:scale(.97)}
+
+@media (prefers-reduced-motion:reduce){
+  .conv-orb-core, .conv-orb-ring{animation:none!important}
+  [data-state="listening"] .conv-orb-ring{opacity:.5;transform:scale(1)}
+}
+
+/* Desktop keeps the app in its phone frame, so the overlay does too. */
+@media (min-width:441px){
+  .conv-overlay{
+    left:50%;transform:translateX(-50%);width:402px;
+    border-radius:44px;
+  }
+}

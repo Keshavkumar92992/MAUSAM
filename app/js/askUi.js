@@ -37,6 +37,14 @@ let recog = null;
 let listening = false;
 
 registerEntries({
+  'voice.conv.open': { en: 'Ask by speaking', hi: 'बोलकर पूछिए', bn: 'বলে জিজ্ঞাসা করুন', ta: 'பேசிக் கேளுங்கள்' },
+  'voice.conv.listening': { en: 'Listening…', hi: 'सुन रहा हूँ…', bn: 'শুনছি…', ta: 'கேட்கிறேன்…' },
+  'voice.conv.thinking': { en: 'Checking the forecast…', hi: 'पूर्वानुमान देख रहा हूँ…', bn: 'পূর্বাভাস দেখছি…', ta: 'முன்னறிவிப்பைப் பார்க்கிறேன்…' },
+  'voice.conv.say_again': { en: 'Did not catch that — say it again.', hi: 'सुनाई नहीं दिया — फिर से बोलिए।', bn: 'শুনতে পাইনি — আবার বলুন।', ta: 'கேட்கவில்லை — மீண்டும் சொல்லுங்கள்.' },
+  'voice.conv.gave_up': { en: 'Nothing heard. Tap to start again.', hi: 'कुछ सुनाई नहीं दिया। फिर शुरू करने के लिए दबाइए।', bn: 'কিছু শোনা গেল না। আবার শুরু করতে চাপুন।', ta: 'எதுவும் கேட்கவில்லை. மீண்டும் தொடங்கத் தட்டுங்கள்.' },
+  'voice.conv.hint': { en: 'Just ask — like "will it rain tomorrow, is it fine to work the field"', hi: 'बस पूछिए — जैसे "कल बारिश होगी क्या, खेत का काम ठीक रहेगा"', bn: 'শুধু জিজ্ঞাসা করুন — যেমন "কাল বৃষ্টি হবে কি, জমির কাজ ঠিক হবে"', ta: 'கேட்டால் போதும் — "நாளை மழை பெய்யுமா, வயல் வேலை சரியாக இருக்குமா" போல' },
+  'voice.conv.end': { en: 'Done', hi: 'बंद करें', bn: 'বন্ধ করুন', ta: 'முடிந்தது' },
+
   'ask.mic': { en: 'Speak', hi: 'बोलें', bn: 'বলুন', ta: 'பேசுங்கள்' },
   'ask.mic_listening': { en: 'Listening…', hi: 'सुन रहे हैं…', bn: 'শুনছি…', ta: 'கேட்கிறேன்…' },
   'ask.mic_denied': { en: 'Microphone blocked — allow it in your browser settings.', hi: 'माइक्रोफ़ोन बंद है — ब्राउज़र सेटिंग्स में अनुमति दें।', bn: 'মাইক্রোফোন বন্ধ — ব্রাউজার সেটিংসে অনুমতি দিন।', ta: 'ஒலிவாங்கி தடுக்கப்பட்டுள்ளது — உலாவி அமைப்புகளில் அனுமதி அளியுங்கள்.' },
@@ -358,11 +366,159 @@ function startVoice(btn) {
   }
 }
 
+
+// ---------- hands-free conversation ----------
+//
+// The panel is text-first: an input box with a small mic beside it. That is
+// the wrong shape for the person who most needs the assistant — a farmer who
+// would rather ask "kal khet ka kaam theek rahega, barish to nahi hogi" out
+// loud than type it. This is that: one button, then talk, listen, talk
+// again, until you stop it.
+//
+// Two rules the loop has to keep, or it eats itself:
+//   * never listen while the synth is speaking — it hears its own voice and
+//     answers its own question;
+//   * give up after a few silent or failed turns rather than holding the
+//     microphone open forever.
+const CONV_MAX_QUIET = 2;    // consecutive silent turns before standing down
+const CONV_MAX_ERRORS = 3;
+
+let conv = null;   // { overlay, orb, caption, transcript, recog, state, quiet, errors, stopped }
+
+function convSet(state, text) {
+  if (!conv) return;
+  conv.state = state;
+  conv.overlay.dataset.state = state;
+  if (text != null) conv.caption.textContent = text;
+}
+
+function convStop() {
+  if (!conv) return;
+  const c = conv;
+  conv = null;                       // clear first: the handlers below check it
+  c.stopped = true;
+  try { c.recog?.abort(); } catch { /* already gone */ }
+  stopSpeaking();
+  c.overlay.remove();
+}
+
+function convListen() {
+  if (!conv || conv.stopped) return;
+  const c = conv;
+  const recog = new SR();
+  c.recog = recog;
+  recog.lang = SR_LANG[getLocale()] || 'en-IN';
+  recog.interimResults = true;
+  recog.continuous = false;
+  recog.maxAlternatives = 1;
+
+  let heard = '';
+  recog.onstart = () => convSet('listening', t('voice.conv.listening'));
+  recog.onresult = (e) => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const r = e.results[i];
+      if (r.isFinal) heard += r[0].transcript;
+      else interim += r[0].transcript;
+    }
+    if (conv) conv.transcript.textContent = (heard + interim).trim();
+  };
+  recog.onerror = (e) => {
+    if (!conv) return;
+    if (e.error === 'no-speech') return;              // handled in onend
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      convSet('idle', t('ask.mic_denied'));
+      setTimeout(convStop, 2500);
+      return;
+    }
+    conv.errors += 1;
+    if (conv.errors >= CONV_MAX_ERRORS) { convSet('idle', t('ask.mic_error')); setTimeout(convStop, 2000); }
+  };
+  recog.onend = async () => {
+    if (!conv || conv.stopped) return;
+    const said = heard.trim();
+    if (!said) {
+      conv.quiet += 1;
+      if (conv.quiet >= CONV_MAX_QUIET) {
+        // Stand down rather than close: the caption invites a tap to start
+        // again, and a panel that vanished first would be lying about that.
+        conv.quiet = 0;
+        convSet('idle', t('voice.conv.gave_up'));
+        return;
+      }
+      convSet('listening', t('voice.conv.say_again'));
+      setTimeout(convListen, 400);
+      return;
+    }
+    conv.quiet = 0;
+    convSet('thinking', t('voice.conv.thinking'));
+    const card = await ask(said);
+    if (!conv || conv.stopped) return;
+    conv.transcript.textContent = '';
+    if (!card) { convSet('idle', t('ask.thinking')); setTimeout(convStop, 2400); return; }
+
+    const reply = shortSpeech(card);
+    convSet('speaking', reply);
+    const status = speak(reply, {
+      onEnd: () => {
+        if (!conv || conv.stopped) return;
+        // Only now is it safe to open the microphone again.
+        setTimeout(convListen, 250);
+      },
+    });
+    // No synth on this device: show the reply and carry on listening anyway.
+    if (status !== 'ok') setTimeout(convListen, 1200);
+  };
+
+  try {
+    recog.start();
+  } catch {
+    // Chrome throws if start() lands while the previous session is still
+    // winding down. One retry is enough; more would spin.
+    setTimeout(() => { try { recog.start(); } catch { convStop(); } }, 400);
+  }
+}
+
+function openConversation() {
+  if (conv) return;
+  if (!window.isSecureContext) { statusEl.textContent = t('ask.mic_https'); return; }
+  if (!SR) { statusEl.textContent = t('ask.mic_unsupported'); return; }
+  stopVoice();
+
+  const overlay = el('div', 'conv-overlay');
+  overlay.dataset.state = 'listening';
+  const orb = el('div', 'conv-orb');
+  orb.appendChild(el('span', 'conv-orb-ring'));
+  orb.appendChild(el('span', 'conv-orb-core'));
+  const transcript = el('div', 'conv-transcript');
+  const caption = el('div', 'conv-caption', t('voice.conv.listening'));
+  const hint = el('div', 'conv-hint', t('voice.conv.hint'));
+  const end = el('button', 'conv-end', t('voice.conv.end'));
+  end.type = 'button';
+  end.addEventListener('click', convStop);
+  overlay.append(orb, transcript, caption, hint, end);
+
+  // Tapping the orb while it talks cuts it off and listens — the way you
+  // interrupt a person, and the only way to correct a misheard question
+  // without waiting out the whole answer.
+  orb.addEventListener('click', () => {
+    if (!conv) return;
+    if (conv.state === 'speaking') { stopSpeaking(); setTimeout(convListen, 120); return; }
+    // Idle is where it lands after hearing nothing twice, and the caption
+    // there says to tap — so tapping has to actually start it again.
+    if (conv.state === 'idle') { conv.errors = 0; convListen(); }
+  });
+
+  document.body.appendChild(overlay);
+  conv = { overlay, orb, caption, transcript, recog: null, state: 'listening', quiet: 0, errors: 0, stopped: false };
+  convListen();
+}
+
 // spoken: the question arrived by voice, so the answer is read back without
 // being asked — a voice exchange that only replies in text is half a feature.
 async function ask(question, { spoken = false } = {}) {
   const base = getContext();
-  if (!base?.metrics) return;
+  if (!base?.metrics) return null;
 
   logEl.appendChild(el('div', 'ask-msg user', question));
   const pending = el('div', 'ask-msg bot ask-pending', t('ask.thinking'));
@@ -396,6 +552,26 @@ async function ask(question, { spoken = false } = {}) {
   pending.replaceWith(card);
   scrollLog();
   if (spoken && voiceSupported()) speakCard(card);
+  return card;
+}
+
+// What a hands-free reply says out loud. Deliberately not the whole card:
+// read end to end it runs past twenty seconds, and someone who asked because
+// they cannot type is not going to sit through four sections. The verdict,
+// the one number that drives it, and any severe alert — then stop.
+function shortSpeech(card) {
+  const parts = [];
+  const grab = (sel) => {
+    const n = card.querySelector(sel);
+    const s2 = (n?.textContent || '').trim().replace(/[.\u0964]+$/, '');
+    if (s2) parts.push(s2);
+  };
+  grab('.ask-city-note');
+  grab('.ask-ans');
+  const alert = card.querySelector('.ask-alert .ask-v');
+  if (alert) parts.push(alert.textContent.trim().replace(/[.\u0964]+$/, ''));
+  else grab('.ask-row .ask-v');
+  return parts.join('. ') + '.';
 }
 
 // Reads the card back. The section labels ("WEATHER", "RISK") are visual
@@ -480,6 +656,14 @@ function buildPanel() {
 
   logEl = el('div', 'ask-log');
 
+  let talk = null;
+  if (VOICE_OFFERED) {
+    talk = el('button', 'ask-talk');
+    talk.type = 'button';
+    talk.innerHTML = `${micIcon()}<span>${t('voice.conv.open')}</span>`;
+    talk.addEventListener('click', openConversation);
+  }
+
   const chips = el('div', 'ask-chips');
   for (const key of ['ask.chip.safe', 'ask.chip.when', 'ask.chip.where']) {
     const c = el('button', 'ask-chip', t(key));
@@ -516,7 +700,7 @@ function buildPanel() {
 
   statusEl = el('div', 'ask-mic-status');
 
-  p.append(head, logEl, chips, form, statusEl, el('div', 'ask-disclaimer', t('ask.disclaimer')));
+  p.append(head, logEl, ...(talk ? [talk] : []), chips, form, statusEl, el('div', 'ask-disclaimer', t('ask.disclaimer')));
   builtLocale = getLocale();
   panel.appendChild(p);
   panel.addEventListener('click', (e) => { if (e.target === panel) closeAsk(); });
@@ -556,6 +740,10 @@ export function openAsk() {
 }
 
 export function closeAsk() {
+  // A conversation left running behind a closed panel would keep the
+  // microphone open and answer into an empty room.
+  convStop();
+  convStop();
   stopVoice(); // never leave the mic live behind a dismissed panel
   stopSpeaking(); // and never keep talking to a closed panel
   if (panel) panel.hidden = true;

@@ -520,6 +520,39 @@ group('askEngine — windows that are actually advice');
   is('no window at all gives no label', ask.windowLabel(null), '');
 }
 
+group('askEngine — how people actually speak');
+{
+  // Speech recognition hands over unpunctuated, colloquial text. These are
+  // the shapes a farmer uses out loud, and the reason for the whole
+  // hands-free mode: the person who most needs this is the one least likely
+  // to type it.
+  const spoken = [
+    ['kal kheti karna sahi hoga barish tho nahi ho gi', 'safe', 'agri', 'tomorrow'],
+    ['kal khet ka kaam theek rahega', 'safe', 'agri', 'tomorrow'],
+    ['kal khad dalna theek hoga kya', 'safe', 'agri', 'tomorrow'],
+    ['aaj katai kar sakta hu', 'safe', 'agri', 'now'],
+    ['kal jutai karna sahi hai kya', 'safe', 'agri', 'tomorrow'],
+    ['kab spray karu', 'safe', 'agri', 'now'],
+    ['कल खेत का काम ठीक रहेगा', 'safe', 'agri', 'tomorrow'],
+    ['कल बारिश होगी क्या', 'forecast', null, 'tomorrow'],
+    ['barish hogi kya kal', 'forecast', null, 'tomorrow'],
+    ['kal daud sakta hu kya', 'safe', 'fitness', 'tomorrow'],
+  ];
+  const wrong = [];
+  for (const [q, intent, activity, when] of spoken) {
+    const r = ask.parseIntent(q, 'health');
+    if (r.intent !== intent) wrong.push(`"${q}" → intent ${r.intent}, wanted ${intent}`);
+    else if (activity && r.activity !== activity) wrong.push(`"${q}" → activity ${r.activity}, wanted ${activity}`);
+    else if (r.when !== when) wrong.push(`"${q}" → when ${r.when}, wanted ${when}`);
+  }
+  truthy(`${spoken.length} spoken phrasings route correctly`, !wrong.length, wrong.join('\n          '));
+
+  // Guessing must stay off when the words are actually there — a guessed
+  // activity is what makes a reply feel like it ignored the question.
+  truthy('a clear farming question is not a guess',
+    !ask.parseIntent('kal kheti karna sahi hoga', 'health').guessed);
+}
+
 group('askUi — the card answers the question that was asked');
 {
   // Drive the real assistant in an iframe: intent routing lives in the UI
@@ -587,6 +620,39 @@ group('askUi — the card answers the question that was asked');
 
   truthy('no answer leaks a placeholder or undefined',
     ![infoText, gearText, doingText, btText].some((x) => /\{\{|undefined|NaN/.test(x)));
+
+  group('hands-free — the way in for someone who cannot type');
+  {
+    const talk = d.querySelector('.ask-talk');
+    const srHere = !!(w.SpeechRecognition || w.webkitSpeechRecognition);
+    truthy('the panel offers a full-width speak button, not just an icon', !!talk,
+      'no .ask-talk — voice is offered only when the browser exposes recognition');
+    if (talk && srHere) {
+      truthy('it is labelled in words', (talk.innerText || '').trim().length > 3);
+      talk.click();
+      await new Promise((r) => setTimeout(r, 700));
+      const ov = d.querySelector('.conv-overlay');
+      truthy('tapping it opens the conversation surface', !!ov);
+      if (ov) {
+        truthy('which shows an orb, a caption and a way out',
+          ov.querySelector('.conv-orb-core') && ov.querySelector('.conv-caption') && ov.querySelector('.conv-end'));
+        truthy('and reports a state the stylesheet can animate',
+          ['listening', 'thinking', 'speaking', 'idle'].includes(ov.dataset.state), ov.dataset.state);
+        truthy('the caption is not raw markup or a missing key',
+          !/\{\{|^[a-z.]+$/.test((ov.querySelector('.conv-caption').textContent || '').trim()));
+        ov.querySelector('.conv-end').click();
+        await new Promise((r) => setTimeout(r, 300));
+        truthy('Done closes it', !d.querySelector('.conv-overlay'));
+      }
+      // Closing the panel must not leave the microphone open behind it.
+      talk.click();
+      await new Promise((r) => setTimeout(r, 500));
+      d.querySelector('.ask-close, .ask-x, [aria-label*="lose"]')?.click();
+      await new Promise((r) => setTimeout(r, 400));
+      truthy('closing the panel takes the conversation with it',
+        !d.querySelector('.conv-overlay'));
+    }
+  }
 
   frame.remove();
 }

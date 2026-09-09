@@ -1,0 +1,50 @@
+# Publishes app/ to GitHub Pages on every push to main.
+#
+# Why this exists: Netlify Drop without an account hands you a URL that
+# expires, and claiming it means signing in every time. This gives a
+# permanent HTTPS address that updates itself when you push, with nothing to
+# re-upload by hand.
+#
+# HTTPS is not a nicety here. The microphone, "use my location" and
+# installing to the home screen are all refused by browsers on a plain
+# http:// origin, so a local IP can never exercise them. Pages serves https.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:      # also runnable by hand from the Actions tab
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race; the newer push wins.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage the site
+        run: |
+          mkdir -p _site
+          cp -r app/. _site/
+          # Development-only, and no business being on a public URL:
+          # serve.py is the local server, tests.html is the test runner.
+          rm -f _site/serve.py _site/tests.html
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

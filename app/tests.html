@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mausam · tests</title>
+<style>
+  body{font:13px/1.5 ui-monospace,Menlo,monospace;background:#0E1420;color:#D7E0EC;margin:0;padding:20px}
+  h1{font-size:15px;margin:0 0 4px}
+  .sub{color:#7C8CA3;margin-bottom:16px}
+  .grp{margin:18px 0 6px;font-weight:700;color:#9FC4F0;border-bottom:1px solid #22314A;padding-bottom:4px}
+  .ok{color:#63C08C}.fail{color:#F07A6A}.warn{color:#E0B060}
+  .row{padding:1px 0;white-space:pre-wrap}
+  #tally{position:sticky;top:0;background:#0E1420;padding:8px 0;font-weight:700;border-bottom:1px solid #22314A}
+</style>
+</head>
+<body>
+<h1>Mausam test run</h1>
+<div class="sub">Open with the app served (same origin) — it imports the real modules.</div>
+<div id="tally">running…</div>
+<div id="out"></div>
+
+<script type="module">
+/* A test file, not a test framework. No runner is installable here — there
+   is no Node on this machine and the app has no build step — so this is a
+   page you open. It imports the same modules the app does, from the same
+   origin, so what it exercises is what ships. */
+
+const out = document.getElementById('out');
+let pass = 0, fail = 0, warn = 0;
+
+function group(name) {
+  out.insertAdjacentHTML('beforeend', `<div class="grp">${name}</div>`);
+}
+function ok(msg) { pass++; out.insertAdjacentHTML('beforeend', `<div class="row ok">  PASS  ${msg}</div>`); }
+function bad(msg, detail) {
+  fail++;
+  out.insertAdjacentHTML('beforeend', `<div class="row fail">  FAIL  ${msg}${detail ? '\n          ' + detail : ''}</div>`);
+}
+function note(msg) { warn++; out.insertAdjacentHTML('beforeend', `<div class="row warn">  NOTE  ${msg}</div>`); }
+
+function is(name, got, want) {
+  const g = JSON.stringify(got), w = JSON.stringify(want);
+  g === w ? ok(name) : bad(name, `got ${g}, wanted ${w}`);
+}
+function truthy(name, v, detail) { v ? ok(name) : bad(name, detail); }
+function near(name, got, want, tol, unit = '') {
+  Math.abs(got - want) <= tol
+    ? ok(`${name} (${got.toFixed ? got.toFixed(3) : got}${unit})`)
+    : bad(name, `got ${got}, wanted ${want} ±${tol}${unit}`);
+}
+
+const MIN = 60000, HOUR = 3600000, DAY = 86400000;
+
+// ---------------------------------------------------------------- dusk ----
+const dusk = await import('./js/dusk.js');
+group('dusk.js — how dark, and when');
+{
+  // A real Delhi day: sunrise 06:03, sunset 18:30 local.
+  const day = (h, m = 0) => new Date(2026, 8, 9, h, m).getTime();
+  const metrics = { sunrise: '2026-09-09T06:03', sunset: '2026-09-09T18:30' };
+  const at = (h, m) => dusk.duskLevel(metrics, day(h, m));
+
+  is('midnight is fully dark', at(0), 1);
+  is('noon is fully light', at(12), 0);
+  near('7 PM is lightly dark', at(19), 0.38, 0.02);
+  near('9 PM is fully dark', at(21), 1, 0.001);
+  near('5 AM has started lightening', at(5), 0.68, 0.02);
+  is('7:15 AM is fully light', at(7, 15), 0);
+
+  truthy('the evening ramp only ever increases',
+    Array.from({ length: 40 }, (_, i) => at(17, i * 6))
+      .every((v, i, a) => i === 0 || v >= a[i - 1]));
+  truthy('the morning ramp only ever decreases',
+    Array.from({ length: 40 }, (_, i) => at(4, i * 6))
+      .every((v, i, a) => i === 0 || v <= a[i - 1]));
+  truthy('never leaves 0..1 across a whole day',
+    Array.from({ length: 24 * 12 }, (_, i) => at(0, i * 5)).every((v) => v >= 0 && v <= 1));
+
+  // The palette flips exactly at sunset, which is the claim the CSS rests on.
+  const setMs = Date.parse('2026-09-09T18:30');
+  near('the flip lands on sunset itself', dusk.duskLevel(metrics, setMs), dusk.SUNSET_POINT, 0.001);
+  truthy('one minute before sunset is still day',
+    dusk.duskLevel(metrics, setMs - MIN) < dusk.SUNSET_POINT);
+  truthy('one minute after sunset is night',
+    dusk.duskLevel(metrics, setMs + MIN) >= dusk.SUNSET_POINT);
+
+  // Missing or malformed sun times must not produce NaN — that would write
+  // "--dusk: NaN" and the whole palette would fall back to its initial value.
+  for (const m of [null, undefined, {}, { sunrise: null, sunset: null },
+    { sunrise: 'nonsense', sunset: 'nonsense' }, { sunrise: '2026-09-09T06:03' }]) {
+    const v = dusk.duskLevel(m, day(19));
+    if (!Number.isFinite(v) || v < 0 || v > 1) { bad('fallback for ' + JSON.stringify(m), `got ${v}`); break; }
+  }
+  ok('missing / malformed sun times fall back to the clock, never NaN');
+
+  // A far-north summer, where the sun sets at 23:00 and rises at 03:00.
+  const arctic = { sunrise: '2026-06-21T02:50', sunset: '2026-06-21T23:10' };
+  const shortNight = Array.from({ length: 24 * 4 }, (_, i) =>
+    dusk.duskLevel(arctic, new Date(2026, 5, 21, 0, i * 15).getTime()));
+  truthy('a 4-hour summer night stays in range', shortNight.every((v) => v >= 0 && v <= 1));
+  truthy('a 4-hour summer night still gets dark at some point', Math.max(...shortNight) > 0.5);
+
+  is('clamp01 floors', dusk.clamp01(-3), 0);
+  is('clamp01 ceilings', dusk.clamp01(9), 1);
+}
+
+// ---------------------------------------------------------------- moon ----
+const moon = await import('./js/moon.js');
+group('moon.js — phase and dates');
+{
+  // Published times (UTC) from timeanddate.com, spanning 26 years.
+  const NEW = ['2000-01-06T18:14Z', '2024-01-11T11:57Z', '2025-01-29T12:36Z', '2026-01-18T19:52Z'];
+  const FULL = ['2024-01-25T17:54Z', '2025-09-07T18:09Z', '2026-03-03T11:38Z', '2026-09-26T16:49Z'];
+  let worst = 0;
+  for (const iso of NEW) {
+    const want = Date.parse(iso);
+    const got = moon.moonNow(want - 20 * DAY).nextNew;
+    worst = Math.max(worst, Math.abs(got - want) / MIN);
+  }
+  for (const iso of FULL) {
+    const want = Date.parse(iso);
+    const got = moon.moonNow(want - 20 * DAY).nextFull;
+    worst = Math.max(worst, Math.abs(got - want) / MIN);
+  }
+  near('8 published new/full moons, worst error', worst, 0, 5, ' min');
+
+  // Walk a full lunation from a known new moon.
+  const newMoon = moon.moonNow(Date.parse('2026-01-18T19:52Z') - 20 * DAY).nextNew;
+  const walk = Array.from({ length: 60 }, (_, i) => moon.moonNow(newMoon + (i / 59) * 29.53 * DAY));
+
+  truthy('illumination stays within 0..1', walk.every((m) => m.illum >= 0 && m.illum <= 1));
+  truthy('age stays within one lunar month', walk.every((m) => m.age >= 0 && m.age < 29.54));
+  near('brightest point of the cycle', Math.max(...walk.map((m) => m.illum)), 1, 0.01);
+  near('darkest point of the cycle', Math.min(...walk.map((m) => m.illum)), 0, 0.01);
+
+  truthy('the first half waxes, the second wanes',
+    walk.every((m) => m.waxing === (m.frac < 0.5)));
+
+  // The bug this replaced: eight equal buckets called a 68%-lit moon
+  // "First Quarter". A quarter must actually look like a quarter.
+  const quarters = walk.filter((m) => m.phase === 'first_quarter' || m.phase === 'last_quarter');
+  truthy('anything named a quarter is near half lit',
+    quarters.length > 0 && quarters.every((m) => Math.abs(m.illum - 0.5) < 0.12),
+    quarters.map((m) => `${m.phase} ${(m.illum * 100).toFixed(0)}%`).join(', '));
+  const fulls = walk.filter((m) => m.phase === 'full');
+  truthy('anything named full is nearly fully lit',
+    fulls.length > 0 && fulls.every((m) => m.illum > 0.97),
+    fulls.map((m) => `${(m.illum * 100).toFixed(0)}%`).join(', '));
+  const news = walk.filter((m) => m.phase === 'new');
+  truthy('anything named new is nearly unlit',
+    news.length > 0 && news.every((m) => m.illum < 0.03),
+    news.map((m) => `${(m.illum * 100).toFixed(1)}%`).join(', '));
+
+  truthy('all eight names appear across a lunation',
+    new Set(walk.map((m) => m.phase)).size === 8,
+    [...new Set(walk.map((m) => m.phase))].join(', '));
+
+  // Both upcoming dates must be in the future, and inside one cycle.
+  const now = moon.moonNow();
+  truthy('next full moon is ahead of us', now.nextFull > Date.now());
+  truthy('next new moon is ahead of us', now.nextNew > Date.now());
+  truthy('neither is more than a lunation away',
+    now.nextFull - Date.now() < 30 * DAY && now.nextNew - Date.now() < 30 * DAY);
+
+  // Standing exactly on a new moon used to be able to return that same
+  // instant as the "next" one.
+  const exact = moon.moonNow(now.nextNew);
+  truthy('asked at the exact new moon, the next one is a month out',
+    exact.nextNew > now.nextNew + 25 * DAY);
+  const exactFull = moon.moonNow(now.nextFull);
+  truthy('asked at the exact full moon, the next one is a month out',
+    exactFull.nextFull > now.nextFull + 25 * DAY);
+
+  // The drawing: valid path data at every phase, no NaN in the arcs.
+  let svgBad = null;
+  for (let i = 0; i <= 40; i++) {
+    const m = moon.moonNow(newMoon + (i / 40) * 29.53 * DAY);
+    const svg = moon.moonSvg(m, 72);
+    if (/NaN|undefined/.test(svg)) { svgBad = `${m.phase} ${m.frac.toFixed(3)}`; break; }
+    const d = svg.match(/<path d="([^"]+)"/);
+    if (!d || !/^M [\d.]+ [\d.-]+ A /.test(d[1])) { svgBad = `malformed path at ${m.frac.toFixed(3)}`; break; }
+  }
+  truthy('every phase draws a valid SVG path', !svgBad, svgBad);
+
+  // Two sizes on one page means two sets of <defs> ids.
+  truthy('the two sizes use different gradient ids',
+    moon.moonSvg(now, 44).match(/id="mg44"/) && moon.moonSvg(now, 96).match(/id="mg96"/));
+
+  truthy('date labels carry both a date and a relative phrase',
+    /\d/.test(moon.moonDateLabel(Date.now() + 3 * DAY))
+    && moon.moonDateLabel(Date.now() + 3 * DAY).includes('·'));
+  truthy('a date later today reads as tonight',
+    moon.moonDateLabel(Date.now() + HOUR).includes('tonight'));
+  truthy('tomorrow reads as tomorrow',
+    moon.moonDateLabel(Date.now() + DAY).includes('tomorrow'));
+}
+
+// ----------------------------------------------------------------- sky ----
+const sky = await import('./js/sky.js');
+const api = await import('./js/weatherApi.js');
+group('sky.js — a theme per condition');
+{
+  // Every code Open-Meteo can return has to land on a sky. Walk all of them
+  // rather than the nine keys, so a new code added to weatherApi is caught.
+  const keys = new Set();
+  for (let code = 0; code <= 99; code++) keys.add(api.weatherCodeToCondition(code).key);
+  sky.mountSkyLayers();
+  const el = document.documentElement;
+  let missing = [];
+  for (const key of keys) {
+    for (const night of [false, true]) {
+      el.style.removeProperty('--wx-tint');
+      try { sky.applySky(key, night, 0.5); } catch (e) { missing.push(`${key} ${night}: ${e.message}`); continue; }
+      if (!el.style.getPropertyValue('--wx-tint')) missing.push(`${key} night=${night}: no tint`);
+    }
+  }
+  truthy(`all ${keys.size} condition keys from weatherApi resolve to a sky`, !missing.length, missing.join('; '));
+
+  for (const junk of [undefined, null, '', 'cond.nonexistent', 42]) {
+    try { sky.applySky(junk, false, 0); } catch (e) { bad('unknown condition falls back', `${junk} threw ${e.message}`); break; }
+  }
+  ok('unknown / missing conditions fall back instead of throwing');
+
+  // Daylight means dark ink over a photo. Night means white ink on a dark
+  // page. The washes must not be equally heavy in both.
+  const alpha = (key, night) => {
+    sky.applySky(key, night, 1);
+    return parseFloat(el.style.getPropertyValue('--wx-top'));
+  };
+  const heavy = [...keys].filter((k) => alpha(k, false) > 0.5);
+  truthy('no daytime wash goes past 0.5 alpha', !heavy.length,
+    heavy.map((k) => `${k}=${alpha(k, false)}`).join(', '));
+  const notDeeper = [...keys].filter((k) => alpha(k, true) <= alpha(k, false));
+  truthy('every night wash is heavier than its daytime twin', !notDeeper.length, notDeeper.join(', '));
+
+  // Every fx class the table can emit needs a rule, or it renders nothing.
+  sky.applySky('cond.thunderstorm', true, 1);
+  const fxEl = document.querySelector('.weather-fx');
+  const classes = new Set([...fxEl.querySelectorAll('*')].map((n) => n.className));
+  // Read the stylesheet as text rather than through document.styleSheets:
+  // this page deliberately does not link it, and an empty styleSheets list
+  // would have made this check pass by finding nothing to disagree with.
+  const cssText = await (await fetch('./css/styles.css')).text();
+  const unstyled = [...classes].filter((c) => !cssText.includes('.' + c));
+  truthy('every particle class has a CSS rule', !unstyled.length, unstyled.join(', '));
+
+  // Rebuilding on every render would restart every animation.
+  const before = fxEl.innerHTML;
+  sky.applySky('cond.thunderstorm', true, 1);
+  is('re-applying the same sky does not rebuild the layer', fxEl.innerHTML === before, true);
+  sky.applySky('cond.clear', true, 1);
+  truthy('changing the sky does rebuild it', fxEl.innerHTML !== before);
+
+  is('mounting twice does not duplicate the layers',
+    (sky.mountSkyLayers(), document.querySelectorAll('.weather-fx').length), 1);
+
+  // Deterministic, so a re-render can never reshuffle the rain.
+  sky.applySky('cond.rain', false, 0);
+  const a = document.querySelector('.weather-fx').innerHTML;
+  sky.applySky('cond.clear', false, 0);
+  sky.applySky('cond.rain', false, 0);
+  is('the same weather always draws the same sky', document.querySelector('.weather-fx').innerHTML === a, true);
+
+  group('sky.js — the moon gate');
+  is('clear night shows the moon', sky.moonVisible('cond.clear', true), true);
+  is('clear day does not', sky.moonVisible('cond.clear', false), false);
+  is('a rainy night does not', sky.moonVisible('cond.rain', true), false);
+  is('an overcast night does not', sky.moonVisible('cond.overcast', true), false);
+  is('a foggy night does not', sky.moonVisible('cond.haze', true), false);
+  is('an unknown condition at night is treated as partly cloudy',
+    sky.moonVisible(undefined, true), true);
+
+  group('sky.js — colour helper');
+  is('mixHex at 0 is the first colour', sky.mixHex('#000000', '#ffffff', 0), '#000000');
+  is('mixHex at 1 is the second', sky.mixHex('#000000', '#ffffff', 1), '#ffffff');
+  is('mixHex halfway', sky.mixHex('#000000', '#ffffff', 0.5), '#808080');
+  is('mixHex pads single digits', sky.mixHex('#000000', '#0f0f0f', 0.5), '#080808');
+}
+
+// ---------------------------------------------------------------- i18n ----
+const i18n = await import('./js/i18n.js');
+await import('./js/i18nStrings.js');
+await import('./js/askEngine.js');
+await import('./js/askUi.js');
+await import('./js/astro.js');
+await import('./js/voice.js');
+group('i18n — four languages, one dictionary');
+{
+  // Every key the dictionary declares, read out of the registerEntries blocks
+  // themselves. Scanning for t('literal') instead would miss every key the
+  // app builds at runtime — t('status.' + label), t(`ask.hz.${z.key}`) — and
+  // those are exactly the ones a translator is most likely to leave a hole
+  // in. Braces are matched by hand because the values contain {{...}}.
+  const files = ['i18nStrings', 'astro', 'moon', 'askEngine', 'askUi', 'voice'];
+  const declared = new Map();   // key -> Set of locales that define it
+  for (const f of files) {
+    let src;
+    try { src = await (await fetch(`./js/${f}.js`)).text(); } catch { continue; }
+    for (const m of src.matchAll(/'([\w.]+)':\s*\{/g)) {
+      let i = m.index + m[0].length - 1, depth = 0, q = null;
+      for (; i < src.length; i++) {
+        const c = src[i];
+        if (q) { if (c === '\\') i++; else if (c === q) q = null; continue; }
+        if (c === "'" || c === '"' || c === '`') { q = c; continue; }
+        if (c === '{') depth++;
+        else if (c === '}' && --depth === 0) break;
+      }
+      const row = src.slice(m.index, i + 1);
+      if (!/\ben\s*:/.test(row)) continue;   // not a translation row
+      declared.set(m[1], new Set(['en', 'hi', 'bn', 'ta'].filter((l) => new RegExp(`\\b${l}\\s*:`).test(row))));
+    }
+  }
+  const used = new Set(declared.keys());
+  truthy(`read ${used.size} translation keys out of the dictionary`, used.size > 200);
+
+  const holes = [...declared].filter(([, locs]) => locs.size !== 4)
+    .map(([k, locs]) => `${k} (only ${[...locs].join('/')})`);
+  truthy('every declared key defines all four languages', !holes.length, holes.join(', '));
+
+  const back = i18n.getLocale();
+  const missing = { hi: [], bn: [], ta: [] }, untranslated = { hi: [], bn: [], ta: [] };
+  const placeholderLoss = [], placeholderDropped = [];
+  i18n.setLocale('en');
+  const en = {};
+  for (const k of used) en[k] = i18n.t(k);
+  const unresolved = [...used].filter((k) => en[k] === k);
+  truthy('every key used in the source exists in English', !unresolved.length, unresolved.join(', '));
+
+  for (const loc of ['hi', 'bn', 'ta']) {
+    i18n.setLocale(loc);
+    for (const k of used) {
+      if (en[k] === k) continue;
+      const v = i18n.t(k);
+      if (v === k) missing[loc].push(k);
+      // Strip the placeholders first: '{{day}} {{from}}–{{to}}' has no words
+      // in it, so being identical in every language is the correct outcome.
+      else if (v === en[k] && /[a-z]{4}/i.test(en[k].replace(/\{\{\w+\}\}/g, ''))) untranslated[loc].push(k);
+      // A translation that drops a {{placeholder}} silently loses the number.
+      // Adding a placeholder English does not supply renders it literally on
+      // screen, so that is a failure. Dropping one is usually right — an
+      // English plural suffix has no business in Hindi — so it is a note.
+      const want = new Set([...en[k].matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]));
+      const got = new Set([...v.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]));
+      const extra = [...got].filter((x) => !want.has(x));
+      const dropped = [...want].filter((x) => !got.has(x));
+      if (extra.length) placeholderLoss.push(`${loc} ${k}: unsupplied {{${extra.join('}}, {{')}}}`);
+      if (dropped.length) placeholderDropped.push(`${loc} ${k}: drops {{${dropped.join('}}, {{')}}}`);
+    }
+  }
+  i18n.setLocale(back);
+
+  for (const loc of ['hi', 'bn', 'ta']) {
+    truthy(`${loc}: no key falls through to the raw key name`, !missing[loc].length, missing[loc].join(', '));
+    if (untranslated[loc].length) note(`${loc}: ${untranslated[loc].length} key(s) identical to English — ${untranslated[loc].slice(0, 8).join(', ')}${untranslated[loc].length > 8 ? '…' : ''}`);
+    else ok(`${loc}: every key differs from English`);
+  }
+  truthy('no translation invents a {{placeholder}} nothing supplies', !placeholderLoss.length, placeholderLoss.join('\n          '));
+  if (placeholderDropped.length) note(`${placeholderDropped.length} translation(s) drop a placeholder — ${placeholderDropped.join('; ')}`);
+  else ok('no translation drops a placeholder either');
+
+  // The bug that shipped once: writing {n} where the engine wants {{n}}.
+  i18n.setLocale('en');
+  const single = [...used].filter((k) => /(?<!\{)\{[a-z]+\}(?!\})/.test(i18n.t(k)));
+  truthy('no string uses single-brace placeholders', !single.length, single.join(', '));
+  i18n.setLocale(back);
+
+  // Substitution actually happens, in every language.
+  for (const loc of ['en', 'hi', 'bn', 'ta']) {
+    i18n.setLocale(loc);
+    const s = i18n.t('moon.illum', { n: 42 });
+    if (s.includes('{{') || !s.includes('42')) { bad(`${loc}: interpolation`, s); break; }
+  }
+  i18n.setLocale(back);
+  ok('interpolation substitutes in all four languages');
+}
+
+// -------------------------------------------------------------- render ----
+group('render — nothing leaks into the page');
+{
+  const html = moon.renderMoonCard() + moon.renderMoonStrip();
+  const probe = document.createElement('div');
+  probe.innerHTML = html;
+  const text = probe.innerText || probe.textContent;
+  truthy('moon markup leaves no unsubstituted {{placeholder}}', !text.includes('{{'), text.slice(0, 120));
+  truthy('moon markup has no undefined / NaN', !/undefined|NaN/.test(text), text.slice(0, 120));
+  truthy('the strip is a real button', probe.querySelector('button#moon-strip') !== null);
+  truthy('the disc carries an accessible label',
+    /role="img"[^>]*aria-label="[^"]+"/.test(html) || /aria-label="[^"]+"[^>]*role="img"/.test(html));
+}
+
+// ------------------------------------------------------------ the app ----
+// Everything above tests modules in isolation. This drives the real home
+// screen in an iframe, because the bugs that actually shipped in this app
+// were never in the arithmetic — they were labels that never re-translated,
+// a placeholder that rendered as {{n}}, a nav that kept yesterday's colours.
+group('the home screen — every persona, every language');
+{
+  const frame = document.createElement('iframe');
+  frame.style.cssText = 'position:fixed;left:-9999px;width:402px;height:900px;border:0';
+  document.body.appendChild(frame);
+
+  const load = (url) => new Promise((res) => { frame.onload = () => res(frame.contentWindow); frame.src = url; });
+  const settle = async (w, ms = 5000) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < ms) {
+      const txt = w.document.body.innerText || '';
+      if (txt && !/Loading conditions/.test(txt)) return txt;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    return w.document.body.innerText || '';
+  };
+
+  const PERSONAS = ['health', 'fitness', 'beach', 'travel', 'family', 'agri', 'commute'];
+  const LOCALES = ['en', 'hi', 'bn', 'ta'];
+  const SCRIPT = { hi: /[ऀ-ॿ]/, bn: /[ঀ-৿]/, ta: /[஀-௿]/ };
+
+  const leaks = [], untranslated = [], errors = [];
+  let checked = 0, reachedData = 0;
+
+  for (const loc of LOCALES) {
+    for (const persona of PERSONAS) {
+      // Seed the app's own state key, then load it fresh.
+      localStorage.setItem('mausam.state.v1', JSON.stringify({ locale: loc, activePersona: persona }));
+      const w = await load('./index.html');
+      w.addEventListener('error', (e) => errors.push(`${loc}/${persona}: ${e.message}`));
+      const text = await settle(w);
+      checked++;
+      if (!/Loading conditions|could not|unavailable|Try again/i.test(text)) reachedData++;
+
+      if (text.includes('{{')) leaks.push(`${loc}/${persona}: unsubstituted {{…}}`);
+      if (/\bundefined\b|\bNaN\b|\bnull\b/.test(text)) leaks.push(`${loc}/${persona}: ${text.match(/\S*(undefined|NaN|null)\S*/)[0]}`);
+      // A t() miss falls through to the raw key, which looks like this.
+      const rawKey = text.match(/\b(home|tile|row|val|status|tip|cond|astro|moon|ask|nav|alert|summary|fresh|travel|radar|alerts|saved|theme|voice)\.[a-z_.]{3,}\b/);
+      if (rawKey) leaks.push(`${loc}/${persona}: raw key "${rawKey[0]}"`);
+      if (SCRIPT[loc] && !SCRIPT[loc].test(text)) untranslated.push(`${loc}/${persona}`);
+    }
+  }
+  localStorage.removeItem('mausam.state.v1');
+
+  truthy(`rendered ${checked} persona/language combinations`, checked === 28);
+  note(`${reachedData} of ${checked} reached live data (the rest fell back — Open-Meteo rate-limits by IP)`);
+  truthy('nothing leaks a placeholder, undefined, NaN or a raw key', !leaks.length, leaks.slice(0, 10).join('\n          '));
+  truthy('every non-English render actually contains that script', !untranslated.length, untranslated.join(', '));
+  truthy('no uncaught errors while rendering', !errors.length, errors.slice(0, 5).join('; '));
+
+  group('the home screen — interaction and resilience');
+  // Corrupt state must not brick the app: it is the first thing read, before
+  // anything is on screen.
+  for (const junk of ['not json at all', '{"locale":', '{"city":{"lat":"abc"}}', 'null', '[]']) {
+    localStorage.setItem('mausam.state.v1', junk);
+    const w = await load('./index.html');
+    const text = await settle(w, 3500);
+    if (!text || text.length < 40) { bad('survives corrupt saved state', `${junk} rendered ${text.length} chars`); break; }
+  }
+  localStorage.removeItem('mausam.state.v1');
+  ok('survives corrupt / malformed saved state');
+
+  const w = await load('./index.html');
+  await settle(w);
+  const d = w.document;
+
+  truthy('the weather layers mounted', d.querySelector('.weather-wash') && d.querySelector('.weather-fx'));
+  truthy('exactly one of each weather layer',
+    d.querySelectorAll('.weather-wash').length === 1 && d.querySelectorAll('.weather-fx').length === 1);
+  truthy('the theme dial is a number, not NaN',
+    Number.isFinite(parseFloat(getComputedStyle(d.documentElement).getPropertyValue('--dusk'))));
+  is('the palette side is 0 or 1, never in between',
+    [0, 1].includes(parseFloat(d.documentElement.style.getPropertyValue('--night'))), true);
+  truthy('data-theme agrees with the dial',
+    (d.documentElement.dataset.theme === 'dark') === (parseFloat(d.documentElement.style.getPropertyValue('--night')) === 1));
+
+  // Persona switching used to reset the chip rail's scroll on every tap.
+  const chips = [...d.querySelectorAll('.persona-chip')];
+  truthy('all seven personas are offered', chips.length === 7, `found ${chips.length}`);
+  const railBefore = d.querySelector('.persona-scroll');
+  if (railBefore) railBefore.scrollLeft = 120;
+  chips[3]?.click();
+  await new Promise((r) => setTimeout(r, 400));
+  near('the chip rail keeps its scroll across a switch',
+    d.querySelector('.persona-scroll')?.scrollLeft ?? 0, 120, 40, 'px');
+  truthy('switching persona re-renders without leaking',
+    !(d.body.innerText || '').includes('{{'));
+
+  // Overlays: opened, and — the bug that shipped once — actually closable.
+  d.getElementById('btn-search')?.click();
+  await new Promise((r) => setTimeout(r, 300));
+  const searchOpen = !!d.getElementById('search-overlay');
+  d.getElementById('search-close')?.click();
+  await new Promise((r) => setTimeout(r, 300));
+  truthy('the city search opens and closes', searchOpen && !d.getElementById('search-overlay'));
+
+  d.getElementById('btn-lang')?.click();
+  await new Promise((r) => setTimeout(r, 300));
+  const langOpen = !!d.getElementById('lang-overlay');
+  d.getElementById('lang-close')?.click();
+  await new Promise((r) => setTimeout(r, 300));
+  truthy('the language sheet opens and closes', langOpen && !d.getElementById('lang-overlay'));
+
+  const strip = d.querySelector('.astro-strip, .moon-strip');
+  strip?.click();
+  await new Promise((r) => setTimeout(r, 500));
+  const sheet = d.querySelector('.astro-overlay');
+  truthy('the astronomy sheet opens from the strip', !!sheet);
+  truthy('and carries the moon card', !!d.querySelector('.moon-card'));
+  truthy('the sheet is visible, not merely present',
+    sheet && getComputedStyle(sheet).display !== 'none' && parseFloat(getComputedStyle(sheet).opacity) > 0.5);
+  const cardText = d.querySelector('.moon-card')?.innerText || '';
+  truthy('the moon card reads cleanly', cardText && !/\{\{|undefined|NaN/.test(cardText), cardText.slice(0, 90));
+  d.getElementById('astro-ok')?.click();
+  await new Promise((r) => setTimeout(r, 400));
+  truthy('and closes again', !d.querySelector('.astro-overlay'));
+
+  d.querySelector('.ask-fab')?.click();
+  await new Promise((r) => setTimeout(r, 500));
+  const askOpen = !!d.querySelector('.ask-overlay:not([hidden])');
+  truthy('the assistant opens', askOpen);
+  truthy('the assistant greeting reads cleanly',
+    !((d.querySelector('.ask-overlay')?.innerText || '').includes('{{')));
+
+  group('contrast — text against what is behind it');
+  {
+    // Resolve tokens to real sRGB: getComputedStyle hands back oklab() for
+    // anything color-mix built, which no contrast formula wants.
+    const cv = d.createElement('canvas'); cv.width = cv.height = 1;
+    const cx = cv.getContext('2d');
+    const probe = d.createElement('div');
+    probe.style.cssText = 'position:fixed;opacity:0'; d.body.appendChild(probe);
+    const px = (tok, over) => {
+      probe.style.backgroundColor = `var(${tok})`;
+      const c = getComputedStyle(probe).backgroundColor;
+      cx.fillStyle = over; cx.fillRect(0, 0, 1, 1);
+      cx.fillStyle = c; cx.fillRect(0, 0, 1, 1);
+      const q = cx.getImageData(0, 0, 1, 1).data; return [q[0], q[1], q[2]];
+    };
+    const L = (r) => { const c = r.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+    const ratio = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+    const hex = (r) => '#' + r.map((v) => v.toString(16).padStart(2, '0')).join('');
+
+    for (const [label, night, deep] of [['daylight', 0, 0], ['twilight', 1, 0], ['midnight', 1, 1]]) {
+      d.documentElement.style.setProperty('--night', String(night));
+      d.documentElement.style.setProperty('--deep', String(deep));
+      d.documentElement.dataset.theme = night ? 'dark' : 'light';
+      await new Promise((r) => setTimeout(r, 1300));
+      const card = px('--card', 'white');
+      const worst = Math.min(
+        ratio(px('--ink', hex(card)), card),
+        ratio(px('--ink-secondary', hex(card)), card),
+        ratio(px('--ink-tertiary', hex(card)), card));
+      worst >= 4.5
+        ? ok(`${label}: worst text contrast ${worst.toFixed(2)}:1 (AA needs 4.5)`)
+        : bad(`${label}: worst text contrast`, `${worst.toFixed(2)}:1, AA needs 4.5`);
+    }
+    probe.remove();
+  }
+
+  frame.remove();
+}
+
+// -------------------------------------------------------- the other pages ----
+group('radar, alerts and saved');
+{
+  const frame = document.createElement('iframe');
+  frame.style.cssText = 'position:fixed;left:-9999px;width:402px;height:900px;border:0';
+  document.body.appendChild(frame);
+  const load = (url) => new Promise((res) => { frame.onload = () => res(frame.contentWindow); frame.src = url; });
+
+  for (const loc of ['en', 'hi', 'bn', 'ta']) {
+    for (const page of ['radar.html', 'alerts.html', 'saved.html']) {
+      localStorage.setItem('mausam.state.v1', JSON.stringify({ locale: loc }));
+      const w = await load('./' + page);
+      await new Promise((r) => setTimeout(r, 1400));
+      const d = w.document, text = d.body.innerText || '';
+      const prob = [];
+      if (text.includes('{{')) prob.push('unsubstituted {{…}}');
+      if (/\bundefined\b|\bNaN\b/.test(text)) prob.push(text.match(/\S*(undefined|NaN)\S*/)[0]);
+      const rawKey = text.match(/\b(home|tile|row|val|status|nav|alert|alerts|saved|radar|astro|moon|cond)\.[a-z_.]{3,}\b/);
+      if (rawKey) prob.push(`raw key "${rawKey[0]}"`);
+      if (!d.querySelector('.bottom-nav')) prob.push('no bottom nav');
+      // Every page stamps the theme before first paint and injects the scrim.
+      if (!['light', 'dark'].includes(d.documentElement.dataset.theme)) prob.push('no data-theme');
+      if (!Number.isFinite(parseFloat(d.documentElement.style.getPropertyValue('--deep')))) prob.push('no --deep');
+      if (!d.querySelector('.status-scrim')) prob.push('no status scrim');
+      prob.length ? bad(`${page} (${loc})`, prob.join(', ')) : ok(`${page} (${loc}) renders clean`);
+    }
+  }
+  localStorage.removeItem('mausam.state.v1');
+
+  group('switching language mid-session');
+  {
+    // The bug class this exists for: text baked at fetch time, which then
+    // stays in the old language until you reload.
+    localStorage.setItem('mausam.state.v1', JSON.stringify({ locale: 'en' }));
+    const w = await load('./index.html');
+    // The `txt &&` matters: for the first moment after onload the body is
+    // empty, which is not "Loading conditions" either — without it this
+    // raced straight past the wait and read a blank page.
+    const t0 = Date.now();
+    for (;;) {
+      const txt = w.document.body.innerText || '';
+      if ((txt && !/Loading conditions/.test(txt)) || Date.now() - t0 > 8000) break;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    const d = w.document;
+    // The wordmark is always "Mausam मौसम", so the whole-body test has to
+    // look at the content rather than the header to know what language the
+    // app is actually speaking.
+    const sheet = () => d.querySelector('.content-sheet')?.innerText || '';
+    const before = sheet();
+    truthy('starts in English', /[A-Za-z]/.test(before) && !/[ऀ-ॿ]/.test(before));
+
+    d.getElementById('btn-lang')?.click();
+    await new Promise((r) => setTimeout(r, 300));
+    const hiOption = d.querySelector('.lang-row[data-lang="hi"]');
+    truthy('Hindi is offered in the language sheet', !!hiOption);
+    hiOption?.click();
+    await new Promise((r) => setTimeout(r, 1500));
+    const after = sheet();
+
+    truthy('the whole screen switches to Devanagari without a reload', /[ऀ-ॿ]/.test(after));
+    // Anything still in Latin script after the switch is text that was baked
+    // at fetch time and never re-translated — the exact failure this exists
+    // for. Place names, units and agency initials are meant to stay.
+    const city = (d.querySelector('.location-city')?.textContent || '').split(',')[0].trim();
+    const stragglers = after.split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 12 && /^[\x20-\x7E]+$/.test(l)
+        && /[a-z]{4}/i.test(l)
+        && !(city && l.includes(city))
+        && !/IMD|AQI|PM2\.5|Open-Meteo|INCOIS|km\/h|UV|Meteorological|Ministry/.test(l));
+    stragglers.length
+      ? bad('no section is left in English after the switch', stragglers.slice(0, 5).join(' | '))
+      : ok('no section is left in English after the switch');
+
+    truthy('nothing leaks after the switch', !after.includes('{{') && !/\bundefined\b|\bNaN\b/.test(after),
+      after.match(/\S*(\{\{|undefined|NaN)\S*/)?.[0]);
+
+    // Two elements sharing an id is how a getElementById handler silently
+    // stops firing for one of them.
+    const ids = [...d.querySelectorAll('[id]')].map((n) => n.id);
+    const dupes = [...new Set(ids.filter((x, i) => ids.indexOf(x) !== i))];
+    truthy('no duplicate element ids in the rendered page', !dupes.length, dupes.join(', '));
+  }
+  localStorage.removeItem('mausam.state.v1');
+  frame.remove();
+}
+
+// ------------------------------------------------------------------ css ----
+group('stylesheet — every var() has a definition');
+{
+  const css = await (await fetch('./css/styles.css')).text();
+  // Not line-anchored: the token table puts a daylight and a night value on
+  // the same line, and anchoring saw only the first of each pair.
+  const defined = new Set([...css.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
+  // Properties the JS sets at runtime, plus the ones @property registers.
+  for (const m of css.matchAll(/@property\s+(--[\w-]+)/g)) defined.add(m[1]);
+  for (const f of ['sky', 'home', 'moon', 'astro', 'askUi']) {
+    let src; try { src = await (await fetch(`./js/${f}.js`)).text(); } catch { continue; }
+    // `--sky-${i+1}` harvests as a bare prefix; expand it to what it builds.
+    for (const m of src.matchAll(/setProperty\(\s*['"`](--[\w-]+)/g)) {
+      if (m[1].endsWith('-')) [1, 2, 3, 4].forEach((n) => defined.add(m[1] + n));
+      else defined.add(m[1]);
+    }
+    for (const m of src.matchAll(/(--[\w-]+)\s*:/g)) defined.add(m[1]);
+  }
+  // Some properties are read from inside JS-built SVG rather than the
+  // stylesheet, so the usage scan has to look there too.
+  const used = new Set([...css.matchAll(/var\(\s*(--[\w-]+)/g)].map((m) => m[1]));
+  for (const f of ['moon', 'astro', 'sky', 'icons', 'home']) {
+    let src; try { src = await (await fetch(`./js/${f}.js`)).text(); } catch { continue; }
+    for (const m of src.matchAll(/var\(\s*(--[\w-]+)/g)) used.add(m[1]);
+  }
+  // A var() with a fallback still renders if undefined, so only flag the ones without.
+  const noFallback = new Set([...css.matchAll(/var\(\s*(--[\w-]+)\s*\)/g)].map((m) => m[1]));
+  const orphans = [...noFallback].filter((v) => !defined.has(v));
+  truthy(`all ${used.size} custom properties used in CSS are defined somewhere`, !orphans.length, orphans.join(', '));
+
+  const unused = [...defined].filter((v) => !used.has(v) && !/^--(d|n|t)-/.test(v));
+  if (unused.length) note(`${unused.length} defined but never read: ${unused.slice(0, 10).join(', ')}`);
+  else ok('no dead custom properties');
+
+  // The dark-theme overrides are keyed off an attribute the JS must set.
+  truthy('the no-color-mix fallback is guarded by @supports',
+    /@supports not \(color: color-mix/.test(css));
+  truthy('reduced motion is honoured', /prefers-reduced-motion/.test(css));
+}
+
+// ---------------------------------------------------------------- night ----
+// None of the above ever ran the night path — the tests run whenever they
+// run, and half the new code only exists after sunset. Force it.
+group('after dark');
+{
+  const frame = document.createElement('iframe');
+  frame.style.cssText = 'position:fixed;left:-9999px;width:402px;height:900px;border:0';
+  document.body.appendChild(frame);
+  const w = await new Promise((res) => { frame.onload = () => res(frame.contentWindow); frame.src = './index.html'; });
+  const t0 = Date.now();
+  for (;;) {
+    const txt = w.document.body.innerText || '';
+    if ((txt && !/Loading conditions/.test(txt)) || Date.now() - t0 > 8000) break;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  const d = w.document;
+  const forceNight = () => {
+    d.documentElement.dataset.theme = 'dark';
+    d.documentElement.style.setProperty('--night', '1');
+    d.documentElement.style.setProperty('--deep', '0.8');
+  };
+
+  // The strip is gated on a clear-ish sky as well as the hour, so drive the
+  // gate the way the app does and re-render through a real persona tap.
+  forceNight();
+  const skyMod = await import('./js/sky.js');
+  skyMod.applySky('cond.clear', true, 0.8);
+  d.querySelector('.persona-chip')?.click();
+  await new Promise((r) => setTimeout(r, 600));
+
+  const cond = d.querySelector('.temp-block .condition')?.textContent || '';
+  const strip = d.querySelector('.moon-strip');
+  if (strip) {
+    ok('the moon strip appears after dark');
+    const txt = strip.innerText;
+    truthy('the strip reads cleanly', !/\{\{|undefined|NaN/.test(txt), txt);
+    truthy('the strip names a phase and a percentage', /\d/.test(txt) && txt.trim().split('\n').length >= 2, txt);
+    truthy('the strip draws a disc', !!strip.querySelector('svg path'));
+    strip.click();
+    await new Promise((r) => setTimeout(r, 500));
+    truthy('tapping the strip opens the astronomy sheet', !!d.querySelector('.astro-overlay'));
+    d.getElementById('astro-ok')?.click();
+    await new Promise((r) => setTimeout(r, 300));
+  } else if (d.documentElement.dataset.theme !== 'dark') {
+    // Honest about the gap rather than passing on a technicality: render()
+    // calls applyTheme() first thing, which recomputes the hour from the
+    // real clock, so pinning data-theme from outside does not survive a
+    // re-render. The strip's two inputs are covered above (moonVisible, and
+    // renderMoonStrip's markup); only their composition needs a real night.
+    note('could not force night end-to-end — applyTheme() recomputes the hour '
+      + 'on every render, so this path is only covered when the suite is run after dark');
+  } else {
+    note(`the moon strip stayed hidden at night — live condition is "${cond.trim()}"`);
+  }
+
+  // The night palette must stay legible over the hero photo, which is the
+  // one surface the token contrast test above does not cover.
+  forceNight();
+  await new Promise((r) => setTimeout(r, 1200));
+  const shell = getComputedStyle(d.querySelector('.app-shell')).backgroundColor;
+  truthy('the shell is painted, not transparent', shell && !/rgba\(0, 0, 0, 0\)/.test(shell), shell);
+
+  // The dusk clock re-renders on the crossover; it must not leave the page
+  // half-dressed or throw.
+  let threw = null;
+  try {
+    d.documentElement.style.setProperty('--night', '0');
+    d.documentElement.dataset.theme = 'light';
+    d.querySelector('.persona-chip')?.click();
+    await new Promise((r) => setTimeout(r, 400));
+    forceNight();
+    d.querySelectorAll('.persona-chip')[2]?.click();
+    await new Promise((r) => setTimeout(r, 400));
+  } catch (e) { threw = e.message; }
+  truthy('crossing sunset back and forth does not throw', !threw, threw);
+  truthy('the page is still whole after the crossover',
+    d.querySelector('.bottom-nav') && d.querySelector('.content-sheet')
+    && !(d.body.innerText || '').includes('{{'));
+
+  // Both weather layers are built once and reused; a persona tap must not
+  // quietly clone them.
+  is('still exactly one weather layer after several re-renders',
+    d.querySelectorAll('.weather-wash').length + d.querySelectorAll('.weather-fx').length, 2);
+
+  group('the assistant answers');
+  {
+    d.querySelector('.ask-fab')?.click();
+    await new Promise((r) => setTimeout(r, 600));
+    const input = d.querySelector('.ask-input, #ask-input, input[type=text]');
+    truthy('the assistant has an input', !!input);
+    if (input) {
+      input.value = 'should i carry an umbrella today';
+      input.dispatchEvent(new w.Event('input', { bubbles: true }));
+      const form = input.closest('form');
+      const send = d.querySelector('#ask-send, .ask-send, button[type=submit]');
+      if (form) form.dispatchEvent(new w.Event('submit', { bubbles: true, cancelable: true }));
+      else send?.click();
+      await new Promise((r) => setTimeout(r, 2500));
+      const msgs = [...d.querySelectorAll('.ask-msg, .ask-card')].map((n) => n.innerText).join('\n');
+      truthy('it replies to a question', msgs.length > 40, msgs.slice(0, 80));
+      truthy('the reply reads cleanly', !/\{\{|undefined|NaN/.test(msgs),
+        msgs.match(/\S*(\{\{|undefined|NaN)\S*/)?.[0]);
+    }
+  }
+
+  frame.remove();
+}
+
+document.getElementById('tally').innerHTML =
+  `<span class="${fail ? 'fail' : 'ok'}">${fail ? 'FAILED' : 'ALL PASSED'}</span>`
+  + ` — ${pass} passed, ${fail} failed${warn ? `, ${warn} note(s)` : ''}`;
+window.__results = { pass, fail, warn };
+</script>
+</body>
+</html>

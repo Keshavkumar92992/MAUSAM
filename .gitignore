@@ -2,3 +2,6 @@
 __pycache__/
 *.pyc
 .claude/settings.local.json
+
+# Build output — regenerated from app/ on every deploy.
+mausam-deploy.zip

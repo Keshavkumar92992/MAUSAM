@@ -442,6 +442,7 @@ registerEntries({
   'radar.layer_cloud': { en: 'Cloud cover', hi: 'बादल आवरण', bn: 'মেঘ আচ্ছাদন', ta: 'மேக மூட்டம்' },
   'radar.layer_lightning': { en: 'Lightning', hi: 'बिजली', bn: 'বজ্রপাত', ta: 'மின்னல்' },
   'radar.layer_wind': { en: 'Wind', hi: 'हवा', bn: 'বাতাস', ta: 'காற்று' },
+  'radar.coverage': { en: 'All India · hourly', hi: 'पूरा भारत · प्रति घंटा', bn: 'সমগ্র ভারত · ঘণ্টাভিত্তিক', ta: 'இந்தியா முழுவதும் · மணிநேரம்' },
   'radar.range': { en: 'Range 250 km', hi: 'रेंज 250 किमी', bn: 'পরিসীমা ২৫০ কিমি', ta: 'வரம்பு 250 கிமீ' },
   'radar.now': { en: 'NOW', hi: 'अभी', bn: 'এখন', ta: 'இப்போது' },
   'radar.minus30': { en: '−30 min', hi: '−30 मिनट', bn: '−৩০ মিনিট', ta: '−30 நிமிடம்' },

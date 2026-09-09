@@ -2,6 +2,7 @@ import { loadState } from './utils.js';
 import { renderBottomNav, renderStatusBar } from './icons.js';
 import { t as tr } from './i18n.js';
 import './i18nStrings.js';
+import { BANDS, STEP, bandFor, bandLabel, gridPoints, fetchGrid, slotAt, summarise } from './precip.js';
 
 const statusWrap = document.getElementById('status-bar-wrap');
 if (statusWrap) statusWrap.innerHTML = renderStatusBar(true);
@@ -18,7 +19,10 @@ document.querySelectorAll('.layer-chip').forEach((el) => {
   const key = { rain: 'radar.layer_rain', cloud: 'radar.layer_cloud', lightning: 'radar.layer_lightning', wind: 'radar.layer_wind' }[el.dataset.layer];
   if (key) el.textContent = tr(key);
 });
-document.querySelector('.range-badge').textContent = tr('radar.range');
+// "Range 250 km" describes a Doppler sweep around one station. This map is
+// the whole country from a forecast model — there is no sweep and no
+// 250 km. The badge now says what the picture actually is.
+document.querySelector('.range-badge').textContent = tr('radar.coverage');
 const sliderTicks = document.querySelectorAll('.slider-ticks span');
 if (sliderTicks[0]) sliderTicks[0].textContent = tr('radar.minus30');
 if (sliderTicks[1]) sliderTicks[1].textContent = tr('radar.now');
@@ -61,6 +65,10 @@ if (hqCity) {
 
 const svg = d3.select('#map');
 let projection, path, W = 0, H = 0, t = 0, layer = 'rain', playing = false, raf = null;
+// Real precipitation, once it arrives. Null means the fetch has not landed
+// (or failed), and the map falls back to the old simulated cells.
+let grid = null;
+let gridFailed = false;
 
 function stampFor(mins) {
   const base = new Date();
@@ -89,6 +97,14 @@ Promise.all([
   const india = countries.features.find((f) => f.id === '356');
 
   buildMap(countries, india, rect);
+
+  // The grid is clipped to the country here, where the outline already
+  // exists — asking for the whole bounding box would spend most of the
+  // request on the Arabian Sea and the Bay of Bengal.
+  const points = gridPoints((lonLat) => d3.geoContains(india, lonLat));
+  fetchGrid(points)
+    .then((g) => { grid = g; draw(); })
+    .catch(() => { gridFailed = true; draw(); });
 
   // The projection is fitted to a fixed pixel size, and the SVG has no
   // viewBox, so nothing rescales on its own — a rotation, or iOS Safari
@@ -131,6 +147,15 @@ function buildMap(countries, india, rect) {
   const clip = defs.append('clipPath').attr('id', 'indiaClip');
   clip.append('path').datum(india).attr('d', path);
 
+  // One gradient per rain band, so a cell's colour is its category rather
+  // than a position on a continuous ramp nobody can read off a map.
+  BANDS.forEach((b, k) => {
+    const g = defs.append('radialGradient').attr('id', 'precip' + k);
+    g.append('stop').attr('offset', '0%').attr('stop-color', b.color).attr('stop-opacity', .95);
+    g.append('stop').attr('offset', '58%').attr('stop-color', b.color).attr('stop-opacity', .48);
+    g.append('stop').attr('offset', '100%').attr('stop-color', b.color).attr('stop-opacity', 0);
+  });
+
   const gc = defs.append('radialGradient').attr('id', 'echoCloud');
   gc.append('stop').attr('offset', '0%').attr('stop-color', '#E8EDF2').attr('stop-opacity', .78);
   gc.append('stop').attr('offset', '60%').attr('stop-color', '#C9D4DE').attr('stop-opacity', .40);
@@ -166,16 +191,40 @@ function draw() {
   const scale = projection.scale();
   const kmToPx = scale / 6371;
   const g = svg.select('#echoes');
-  const cells = CELLS.filter((c) => c.lat > 8).map((c) => ({
+
+  // Real precipitation when it has arrived, for the rain layer only. The
+  // other three layers have no live source and stay simulated — labelled as
+  // such below rather than quietly borrowing this one's credibility.
+  const live = grid && layer === 'rain';
+  const slot = live ? slotAt(grid, Date.now() + t * 60000) : 0;
+  const cells = live
+    ? grid.map((pt) => {
+      const mm = pt.mm[slot] ?? 0;
+      const band = bandFor(mm);
+      const xy = projection([pt.lon, pt.lat]);
+      // Sized off the grid spacing itself, not a constant — the first
+      // version hardcoded 1.5°, and when the grid widened to 2° the cells
+      // stopped touching and the map became a field of polka dots.
+      // 0.85 of the spacing overlaps just enough for neighbours to merge.
+      const base = STEP * 111 * kmToPx * 0.85;
+      return band ? {
+        x: xy[0], y: xy[1],
+        r: base * (0.8 + Math.min(1, mm / 12) * 0.5),
+        band: BANDS.indexOf(band), mm,
+      } : null;
+    }).filter(Boolean)
+    : CELLS.filter((c) => c.lat > 8).map((c) => ({
     x: projection([c.lon + c.vx * t, c.lat + c.vy * t])[0],
     y: projection([c.lon + c.vx * t, c.lat + c.vy * t])[1],
     r: (c.r + c.grow * t * 100) * kmToPx * 6.5,
     i: Math.max(0, Math.min(4, Math.round(c.i + (c.grow > 0.002 ? t / 60 : 0)))),
     dx: (projection([c.lon + c.vx * (t + 55), c.lat + c.vy * (t + 55)])[0] - projection([c.lon + c.vx * t, c.lat + c.vy * t])[0]),
     dy: (projection([c.lon + c.vx * (t + 55), c.lat + c.vy * (t + 55)])[1] - projection([c.lon + c.vx * t, c.lat + c.vy * t])[1]),
-  }));
+    }));
   const isRain = layer === 'rain' || layer === 'lightning';
-  const grad = (d) => (layer === 'cloud' ? 'url(#echoCloud)' : 'url(#echo' + (isRain ? d.i : 2) + ')');
+  const grad = (d) => (live ? 'url(#precip' + d.band + ')'
+    : layer === 'cloud' ? 'url(#echoCloud)'
+    : 'url(#echo' + (isRain ? d.i : 2) + ')');
   const sel = g.selectAll('g.cell').data(cells);
   const enter = sel.enter().append('g').attr('class', 'cell');
   enter.append('circle').attr('class', 'outer');
@@ -187,11 +236,13 @@ function draw() {
     .attr('opacity', layer === 'cloud' ? .92 : layer === 'wind' ? .62 : 1);
   all.select('.core')
     .attr('cx', (d) => d.x).attr('cy', (d) => d.y).attr('r', (d) => d.r * .42)
-    .attr('fill', (d) => (layer === 'cloud' ? 'url(#echoCloud)' : 'url(#echo' + (isRain ? Math.min(4, d.i + 1) : 2) + ')'))
+    .attr('fill', (d) => (live ? 'url(#precip' + d.band + ')'
+      : layer === 'cloud' ? 'url(#echoCloud)'
+      : 'url(#echo' + (isRain ? Math.min(4, d.i + 1) : 2) + ')'))
     .attr('opacity', layer === 'rain' ? .85 : layer === 'lightning' ? .95 : layer === 'cloud' ? .5 : .3);
 
   const ag = svg.select('#arrows');
-  const asel = ag.selectAll('g.arrow').data(layer === 'wind' ? cells : []);
+  const asel = ag.selectAll('g.arrow').data(layer === 'wind' && !live ? cells : []);
   asel.exit().remove();
   const aen = asel.enter().append('g').attr('class', 'arrow');
   aen.append('line').attr('class', 'shaft').attr('stroke', '#BFE7F0').attr('stroke-width', 2.6).attr('stroke-linecap', 'round');
@@ -212,17 +263,47 @@ function draw() {
   });
 
   const LEG = {
-    rain: [tr('radar.legend_rain'), 'linear-gradient(90deg,#4FB8C9,#3E8FD8,#7A5AA8,#C2452D)', ['2.5', '15', '65+']],
+    // Four named categories rather than an unlabelled ramp. The old ticks
+    // read 2.5 / 15 / 65+ under a heading of mm/h — those are IMD's
+    // 24-hour rainfall classes, and 65 mm in a single hour is a figure
+    // India has essentially never recorded. These are rain *rates*.
+    rain: live
+      ? [tr('precip.legend'), `linear-gradient(90deg,${BANDS.map((b) => b.color).join(',')})`,
+        BANDS.map((b) => bandLabel(b.key))]
+      : [tr('radar.legend_rain'), 'linear-gradient(90deg,#4FB8C9,#3E8FD8,#7A5AA8,#C2452D)', ['2.5', '15', '65+']],
     cloud: [tr('radar.legend_cloud'), 'linear-gradient(90deg,rgba(255,255,255,.18),rgba(255,255,255,.55),rgba(255,255,255,.92))', ['20', '60', '100']],
     lightning: [tr('radar.legend_lightning'), 'linear-gradient(90deg,#F2C86A,#E2A350,#C2452D)', ['1', '12', '40+']],
     wind: [tr('radar.legend_wind'), 'linear-gradient(90deg,#4FB8C9,#7A5AA8,#C2452D)', ['20', '45', '70+']],
   }[layer];
   document.getElementById('legTitle').textContent = LEG[0];
-  document.getElementById('legRamp').style.background = LEG[1];
-  document.getElementById('legTicks').innerHTML = LEG[2].map((v) => '<span>' + v + '</span>').join('');
+  const ramp = document.getElementById('legRamp');
+  const ticks = document.getElementById('legTicks');
+  if (live) {
+    // Swatch, name, and the rate that puts you in that band — so the map's
+    // colours can be read without guessing where you are along a gradient.
+    ramp.style.display = 'none';
+    ticks.className = 'legend-bands';
+    ticks.innerHTML = BANDS.map((b) => `<div class="legend-band">`
+      + `<i style="background:${b.color}"></i>${bandLabel(b.key)}`
+      + `<em>${b.max === Infinity ? `${b.min}+` : `${b.min}–${b.max}`}</em></div>`).join('');
+  } else {
+    ramp.style.display = '';
+    ticks.className = 'legend-ticks';
+    ramp.style.background = LEG[1];
+    ticks.innerHTML = LEG[2].map((v) => '<span>' + v + '</span>').join('');
+  }
   document.getElementById('stamp').textContent = stampFor(t);
+  // Say plainly which of the two this is. The rain layer is measured model
+  // output once the grid lands; the other three are still the simulation,
+  // and the label follows whichever is on screen.
+  const src = document.getElementById('radar-sub-prefix');
+  if (src) src.textContent = live ? tr('precip.live') : tr('radar.simulated');
+
   const lead = t <= 0 ? tr('radar.lead_now') : tr('radar.lead_in_min', { n: t });
-  document.getElementById('cellText').textContent = layer === 'wind'
+  if (live) {
+    const sum = summarise(grid, slot);
+    document.getElementById('cellText').textContent = sum ? sum.text : '';
+  } else document.getElementById('cellText').textContent = layer === 'wind'
     ? tr('radar.cell_wind', { lead })
     : layer === 'lightning'
     ? tr('radar.cell_lightning')

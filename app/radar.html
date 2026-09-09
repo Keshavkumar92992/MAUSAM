@@ -93,6 +93,13 @@
   .legend-title{font-size:8.5px;font-weight:700;letter-spacing:.14em;color:rgba(255,255,255,.72)}
   .legend-ramp{width:96px;height:7px;border-radius:4px}
   .legend-ticks{display:flex;justify-content:space-between;font-size:9px;font-weight:600;color:rgba(255,255,255,.72)}
+  /* Named categories stack instead of sitting under a ramp: four words do
+     not fit across 96px, and a colour you have to match against a gradient
+     by eye is not a legend. */
+  .legend-bands{display:flex;flex-direction:column;gap:4px}
+  .legend-band{display:flex;align-items:center;gap:7px;font-size:9.5px;font-weight:600;color:rgba(255,255,255,.82)}
+  .legend-band i{width:9px;height:9px;border-radius:2.5px;flex:none;font-style:normal}
+  .legend-band em{font-style:normal;color:rgba(255,255,255,.5);margin-left:auto;padding-left:8px;font-variant-numeric:tabular-nums}
   .range-badge{position:absolute;right:12px;top:12px;background:rgba(10,18,28,.7);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:7px 11px;font-size:10px;font-weight:600;color:rgba(255,255,255,.72)}
   .controls{padding:14px 20px 6px}
   .controls-row{display:flex;align-items:center;gap:12px}

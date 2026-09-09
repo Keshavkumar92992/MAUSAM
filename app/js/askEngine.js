@@ -113,6 +113,9 @@ registerEntries({
 
   'ask.alt.line': { en: '{{km}} km away · {{temp}}°C · rain {{rain}}%', hi: '{{km}} किमी दूर · {{temp}}°C · बारिश {{rain}}%', bn: '{{km}} কিমি দূরে · {{temp}}°C · বৃষ্টি {{rain}}%', ta: '{{km}} கி.மீ. தொலைவில் · {{temp}}°C · மழை {{rain}}%' },
 
+  'ask.win.range_days': { en: '{{fromDay}} {{from}} – {{toDay}} {{to}}', hi: '{{fromDay}} {{from}} – {{toDay}} {{to}}', bn: '{{fromDay}} {{from}} – {{toDay}} {{to}}', ta: '{{fromDay}} {{from}} – {{toDay}} {{to}}' },
+  'ask.win.all_clear': { en: 'right through the next two days', hi: 'अगले दो दिन लगातार', bn: 'আগামী দু\'দিন ধরেই', ta: 'அடுத்த இரண்டு நாட்களும் தொடர்ந்து' },
+  'ask.weather.outlook': { en: 'Next 12 h: rain peaks at {{rain}}%, gusts to {{gust}} km/h, feels-like high {{max}}°C.', hi: 'अगले 12 घंटे: बारिश की अधिकतम संभावना {{rain}}%, झोंके {{gust}} किमी/घंटा तक, अधिकतम महसूस {{max}}°C।', bn: 'পরের ১২ ঘণ্টা: বৃষ্টির সর্বোচ্চ সম্ভাবনা {{rain}}%, দমকা হাওয়া {{gust}} কিমি/ঘণ্টা, সর্বোচ্চ অনুভূত {{max}}°C।', ta: 'அடுத்த 12 மணி: மழை வாய்ப்பு உச்சம் {{rain}}%, காற்று {{gust}} கி.மீ/மணி வரை, அதிகபட்ச உணர்வு {{max}}°C.' },
   'ask.win.range': { en: '{{day}} {{from}}–{{to}}', hi: '{{day}} {{from}}–{{to}}', bn: '{{day}} {{from}}–{{to}}', ta: '{{day}} {{from}}–{{to}}' },
   'ask.win.today': { en: 'today', hi: 'आज', bn: 'আজ', ta: 'இன்று' },
   'ask.win.tomorrow': { en: 'tomorrow', hi: 'कल', bn: 'আগামীকাল', ta: 'நாளை' },
@@ -365,7 +368,9 @@ export function analyse(metrics, activity, opts = {}) {
 
 // Longest run of hours that clear every threshold. Falls back to merely
 // "caution" hours if nothing is fully clear, so the answer can still offer
-// the least-bad slot instead of a flat no.
+// the least-bad slot instead of a flat no. A run that covers half the
+// horizon or more is reported as openEnded rather than as a time range —
+// see the note inside.
 export function bestWindow(metrics, activity) {
   const prof = ACTIVITY[activity] || ACTIVITY.travel;
   const hours = hoursFrom(metrics, 48);
@@ -386,7 +391,13 @@ export function bestWindow(metrics, activity) {
       }
     });
     if (best && best.len >= 2) {
+      // Past about half a day this stops being a recommendation. Travel and
+      // commute have no daylight limit, so on a mild day the longest
+      // not-terrible run was the entire 48-hour horizon, and the app
+      // solemnly advised "today 2:00 PM–1:00 PM". Say it plainly instead.
+      const openEnded = best.len >= 12;
       return {
+        openEnded,
         fromIso: hours[best.from].iso, toIso: hours[best.to].iso, hours: best.len, strict,
         // The city's own calendar date, so "today" in the label means today
         // *there*. Comparing the label against the device's date said the
@@ -474,11 +485,18 @@ function fmtHour(iso) {
 
 export function windowLabel(win) {
   if (!win) return '';
-  // Both sides are the API's own labels, so this is a plain string compare
+  if (win.openEnded) return t('ask.win.all_clear');
+  // Both sides are the API's own labels, so these are plain string compares
   // and no timezone gets involved at all.
-  const isToday = !win.today || win.fromIso.slice(0, 10) === win.today;
-  const day = isToday ? t('ask.win.today') : t('ask.win.tomorrow');
-  return t('ask.win.range', { day, from: fmtHour(win.fromIso), to: fmtHour(win.toIso) });
+  const dayOf = (iso) => (!win.today || iso.slice(0, 10) === win.today
+    ? t('ask.win.today') : t('ask.win.tomorrow'));
+  const fromDay = dayOf(win.fromIso);
+  const toDay = dayOf(win.toIso);
+  // A window that runs past midnight was printing both ends under one day,
+  // which read backwards: "today 2:00 PM–11:00 AM".
+  return fromDay === toDay
+    ? t('ask.win.range', { day: fromDay, from: fmtHour(win.fromIso), to: fmtHour(win.toIso) })
+    : t('ask.win.range_days', { fromDay, from: fmtHour(win.fromIso), toDay, to: fmtHour(win.toIso) });
 }
 
 export function hazardText(z) {

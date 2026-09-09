@@ -141,20 +141,38 @@ function buildAnswer({ metrics, city, persona }, question, list) {
   const card = el('div', 'ask-msg bot');
   card.appendChild(el('div', 'ask-ans', headline));
 
+  // Which rows belong under the headline depends on what was asked. Every
+  // answer used to carry the same four — WEATHER, RISK, RECOMMENDATION,
+  // WHY — so asking "what's the temperature" came back with a suitability
+  // verdict and a window for an activity nobody had mentioned, and every
+  // reply read like the last one. Only a question about *doing* something
+  // earns a risk verdict.
+  const aboutDoing = intent === 'safe' || intent === 'alternatives' || intent === 'best_time';
+  const showRisk = aboutDoing;
+  const showRec = aboutDoing;
+  const showWhy = aboutDoing || (intent === 'gear' && hazards.length > 0);
+
+  // For a plain forecast question the headline already gives the current
+  // conditions, so this row carries the outlook rather than repeating them.
   card.appendChild(row(t('ask.sec.weather'), el('span', 'ask-v', tmr
     ? t('ask.weather.tomorrow', { place: city.name, rain: peaks.rain, gust: peaks.gust, max: peaks.feels })
-    : t('ask.weather.now', {
-      cond: t(metrics.conditionKey),
-      temp: metrics.tempNow,
-      feels: metrics.feelsLikeNow,
-      rain: peaks.rain,
-      gust: peaks.gust,
-      max: peaks.feels,
-    }))));
+    : intent === 'forecast'
+      ? t('ask.weather.outlook', { rain: peaks.rain, gust: peaks.gust, max: peaks.feels })
+      : t('ask.weather.now', {
+        cond: t(metrics.conditionKey),
+        temp: metrics.tempNow,
+        feels: metrics.feelsLikeNow,
+        rain: peaks.rain,
+        gust: peaks.gust,
+        max: peaks.feels,
+      }))));
 
-  card.appendChild(row(t('ask.sec.risk'), levelChip(level)));
+  if (showRisk) card.appendChild(row(t('ask.sec.risk'), levelChip(level)));
 
   const recNode = el('span', 'ask-v');
+  // Whether this row actually promised a list of places, which is the only
+  // case an empty lookup has any business erasing.
+  let recPromisedAlts = false;
   if (intent === 'alternatives') {
     // Someone asking "where else" may be blocked by something the forecast
     // cannot see — a landslide, a closed road. Take them at their word and
@@ -162,27 +180,34 @@ function buildAnswer({ metrics, city, persona }, question, list) {
     recNode.textContent = level === 'avoid'
       ? t('ask.rec.alts')
       : t('ask.rec.alts_anyway', { place: city.name });
+    recPromisedAlts = true;
+  } else if (intent === 'best_time' && win) {
+    // Checked before the avoid branch, not after. When the level was avoid
+    // this row said "nearby places that look better:", the lookup came back
+    // empty, and the fallback then repeated the very window the headline had
+    // just given. The headline already named the window — spend the row on
+    // what to do about the hours outside it.
+    recNode.textContent = t(level === 'good' ? 'ask.rec.time_clear' : 'ask.rec.time_caveat', { act });
   } else if (level === 'avoid') {
     recNode.textContent = t('ask.rec.alts');
-  } else if (intent === 'best_time' && win) {
-    // The headline already named the window — repeating it here wastes the
-    // row, so spend it on what to do about the hours outside that window.
-    recNode.textContent = t(level === 'good' ? 'ask.rec.time_clear' : 'ask.rec.time_caveat', { act });
+    recPromisedAlts = true;
   } else {
     recNode.textContent = win
       ? t(level === 'good' ? 'ask.rec.window' : 'ask.rec.window_short', { win: windowLabel(win) })
       : t('ask.rec.no_window');
   }
-  card.appendChild(row(t('ask.sec.rec'), recNode));
+  if (showRec) card.appendChild(row(t('ask.sec.rec'), recNode));
   // Alternatives are fetched after the card is built, so reserve their slot
   // here — otherwise they append after WHY and read as a stray afterthought.
   const slot = el('div', 'ask-alts-slot');
   card.appendChild(slot);
 
-  const why = hazards.length
-    ? t('ask.why.hazards', { list: hazards.slice(0, 3).map(hazardText).join(', ') })
-    : t('ask.why.clear', { act });
-  card.appendChild(row(t('ask.sec.why'), el('span', 'ask-v', why)));
+  if (showWhy) {
+    const why = hazards.length
+      ? t('ask.why.hazards', { list: hazards.slice(0, 3).map(hazardText).join(', ') })
+      : t('ask.why.clear', { act });
+    card.appendChild(row(t('ask.sec.why'), el('span', 'ask-v', why)));
+  }
 
   if (guessed) card.appendChild(el('div', 'ask-hint', t('ask.guess_hint')));
 
@@ -197,7 +222,8 @@ function buildAnswer({ metrics, city, persona }, question, list) {
   return {
     card,
     slot,
-    needsAlts: intent === 'alternatives' || level === 'avoid',
+    recNode: showRec && recPromisedAlts ? recNode : null,
+    needsAlts: (intent === 'alternatives' || level === 'avoid') && showRec,
     activity,
     win,
     level,
@@ -205,8 +231,13 @@ function buildAnswer({ metrics, city, persona }, question, list) {
   };
 }
 
-function renderAlternatives(slot, alts, { win, level, place }) {
+function renderAlternatives(slot, alts, { win, level, place, recNode }) {
   if (!alts.length) {
+    // The RECOMMENDATION row has already said "nearby places that look
+    // better:" by this point. With nothing to list, that sentence is a
+    // promise the card cannot keep, so take it back rather than following
+    // it with a time range.
+    if (recNode) recNode.textContent = '';
     // Some activities have no "somewhere else" — you do not drive 200 km
     // for a jog, and a field cannot be relocated. A better time is the
     // only useful alternative there, so offer that instead of a dead end.

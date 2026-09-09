@@ -467,6 +467,130 @@ group('explain.js — one ⓘ per measurement');
   truthy('no measured field is labelled simulated', !mislabelled.length, mislabelled.join(', '));
 }
 
+// ------------------------------------------------------------ assistant ----
+const ask = await import('./js/askEngine.js');
+group('askEngine — windows that are actually advice');
+{
+  const api = await import('./js/weatherApi.js');
+  const mmod = await import('./js/metrics.js');
+  const bundle = await api.fetchWeatherBundle(28.6139, 77.209);
+  const m = mmod.buildMetrics(bundle, 'New Delhi');
+
+  const acts = ['fitness', 'travel', 'family', 'agri', 'commute', 'beach', 'trek', 'health'];
+  const wins = acts.map((a) => [a, ask.bestWindow(m, a)]).filter(([, w]) => w);
+  truthy('a window comes back for most activities', wins.length >= 5);
+
+  // A 48-hour "best window" is not a recommendation, and it used to be
+  // rendered as a backwards-looking range: "today 2:00 PM–1:00 PM".
+  const absurd = wins.filter(([, w]) => !w.openEnded && w.hours >= 12);
+  truthy('no window is presented as a range longer than half a day', !absurd.length,
+    absurd.map(([a, w]) => `${a}: ${w.hours}h`).join(', '));
+
+  const backwards = wins.filter(([, w]) => {
+    const label = ask.windowLabel(w);
+    if (w.openEnded) return false;
+    const m2 = label.match(/(\d+):(\d+)\s*(AM|PM).*?(\d+):(\d+)\s*(AM|PM)/i);
+    if (!m2) return false;
+    const to24 = (h, mi, ap) => ((+h % 12) + (/pm/i.test(ap) ? 12 : 0)) * 60 + +mi;
+    // Only a same-day label has to run forwards; a two-day one names both days.
+    return !/–\s*\S+\s/.test(label.replace(/\s+/g, ' '))
+      && to24(m2[4], m2[5], m2[6]) <= to24(m2[1], m2[2], m2[3]);
+  });
+  truthy('no single-day window reads backwards', !backwards.length,
+    backwards.map(([a, w]) => `${a}: ${ask.windowLabel(w)}`).join(', '));
+
+  const crossing = wins.filter(([, w]) => !w.openEnded && w.fromIso.slice(0, 10) !== w.toIso.slice(0, 10));
+  if (crossing.length) {
+    const unlabelled = crossing.filter(([, w]) => {
+      const l = ask.windowLabel(w);
+      return !(l.includes(i18nPin.t('ask.win.today')) && l.includes(i18nPin.t('ask.win.tomorrow')));
+    });
+    truthy('a window crossing midnight names both days', !unlabelled.length,
+      unlabelled.map(([a, w]) => `${a}: ${ask.windowLabel(w)}`).join(', '));
+  } else {
+    // Synthesise one rather than depending on today's weather to produce it.
+    const w = { fromIso: '2026-09-09T14:00', toIso: '2026-09-10T11:00', hours: 5, today: '2026-09-09' };
+    const l = ask.windowLabel(w);
+    truthy('a window crossing midnight names both days',
+      l.includes(i18nPin.t('ask.win.today')) && l.includes(i18nPin.t('ask.win.tomorrow')), l);
+  }
+
+  is('an open-ended run is phrased, not ranged',
+    ask.windowLabel({ openEnded: true, fromIso: 'x', toIso: 'y' }), i18nPin.t('ask.win.all_clear'));
+  is('no window at all gives no label', ask.windowLabel(null), '');
+}
+
+group('askUi — the card answers the question that was asked');
+{
+  // Drive the real assistant in an iframe: intent routing lives in the UI
+  // layer, so building cards by hand would test the wrong thing.
+  const frame = document.createElement('iframe');
+  frame.style.cssText = 'position:fixed;left:-9999px;width:402px;height:900px;border:0';
+  document.body.appendChild(frame);
+  const w = await new Promise((res) => { frame.onload = () => res(frame.contentWindow); frame.src = './index.html'; });
+  const t0 = Date.now();
+  for (;;) {
+    const txt = w.document.body.innerText || '';
+    if ((txt && !/Loading conditions/.test(txt)) || Date.now() - t0 > 9000) break;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  const d = w.document;
+  d.querySelector('.ask-fab')?.click();
+  await new Promise((r) => setTimeout(r, 600));
+  const input = d.querySelector('.ask-input, #ask-input, input[type=text]');
+  const form = input?.closest('form');
+  const send = d.querySelector('#ask-send, .ask-send, button[type=submit]');
+
+  const ask1 = async (q) => {
+    input.value = q;
+    input.dispatchEvent(new w.Event('input', { bubbles: true }));
+    if (form) form.dispatchEvent(new w.Event('submit', { bubbles: true, cancelable: true }));
+    else send?.click();
+    await new Promise((r) => setTimeout(r, 3000));
+    const cards = [...d.querySelectorAll('.ask-msg.bot, .ask-card')];
+    return cards[cards.length - 1];
+  };
+
+  const secRisk = i18nPin.t('ask.sec.risk');
+  const secRec = i18nPin.t('ask.sec.rec');
+
+  const info = await ask1('what is the temperature right now');
+  const infoText = info?.innerText || '';
+  truthy('a plain forecast question gets an answer', infoText.length > 20);
+  truthy('…and no risk verdict for an activity nobody mentioned', !infoText.includes(secRisk), infoText);
+  truthy('…and no recommendation row either', !infoText.includes(secRec), infoText);
+
+  const gear = await ask1('should i carry an umbrella');
+  const gearText = gear?.innerText || '';
+  truthy('an umbrella question gets a yes/no, not a verdict', !gearText.includes(secRisk), gearText);
+
+  const doing = await ask1('is it safe to go for a run');
+  const doingText = doing?.innerText || '';
+  truthy('a question about doing something does get a risk verdict',
+    doingText.includes(secRisk), doingText);
+
+  // The complaint this all came from: every answer read like the last one.
+  const bodies = [infoText, gearText, doingText].map((x) => x.split('\n').slice(1).join(' '));
+  truthy('the three answers do not share one body',
+    new Set(bodies).size === 3, bodies.join(' ||| ').slice(0, 200));
+
+  const bt = await ask1('best time for a run today');
+  const btText = bt?.innerText || '';
+  // The headline names the window; the row below must not just repeat it.
+  const lines = btText.split('\n').filter(Boolean);
+  const headline = lines[0] || '';
+  const timeIn = (s2) => (s2.match(/\d+:\d+\s*(AM|PM)/gi) || []).join(',');
+  const recLine = lines.find((l, i) => lines[i - 1] === secRec) || '';
+  truthy('the recommendation does not repeat the window the headline gave',
+    !recLine || !timeIn(headline) || timeIn(recLine) !== timeIn(headline),
+    `headline "${headline}" / rec "${recLine}"`);
+
+  truthy('no answer leaks a placeholder or undefined',
+    ![infoText, gearText, doingText, btText].some((x) => /\{\{|undefined|NaN/.test(x)));
+
+  frame.remove();
+}
+
 // ---------------------------------------------------------------- i18n ----
 const i18n = await import('./js/i18n.js');
 await import('./js/i18nStrings.js');

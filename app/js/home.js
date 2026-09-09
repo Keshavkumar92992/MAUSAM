@@ -2,11 +2,12 @@ import { geocodeCity, fetchWeatherBundle, getCurrentLocation } from './weatherAp
 import { buildMetrics } from './metrics.js';
 import { buildPersonaView } from './personas.js';
 import { buildTravelData, addSavedCity } from './travel.js';
-import { loadState, saveState, fmtTime } from './utils.js';
+import { loadState, saveState, fmtTime, validCity } from './utils.js';
 import { ICONS, renderBottomNav, renderStatusBar } from './icons.js';
 import { t, getLocale, setLocale, LOCALES } from './i18n.js';
 import { mountSkyLayers, applySky, moonVisible, mixHex } from './sky.js';
 import { duskLevel, clamp01, SUNSET_POINT } from './dusk.js';
+import { renderExplainSheet, hasExplainer } from './explain.js';
 import { moonNow, renderMoonStrip } from './moon.js';
 import { loadAstroEvents, loadAstroHistory, nextEvent, stripSubject, dueForPopup, markEventSeen,
   renderAstroStrip, renderAstroModal, renderHistoryStrip, renderHistoryModal, wireAstroCard } from './astro.js';
@@ -88,6 +89,7 @@ const state = {
   astroShown: null,
   astroHistShown: null,
   astroOpen: false,
+  explainTile: null,
 };
 
 const REFRESH_AFTER_MS = 10 * 60 * 1000;
@@ -110,7 +112,7 @@ async function init() {
   personaConfig = await cfgRes.json();
 
   const saved = loadState();
-  state.city = saved.city || DEFAULT_CITY;
+  state.city = validCity(saved.city) || DEFAULT_CITY;
   state.activePersona = saved.activePersona || 'health';
   document.documentElement.lang = getLocale();
 
@@ -449,6 +451,7 @@ function render() {
     <div class="home-indicator"></div>
     ${state.searchOpen ? renderSearch() : ''}
     ${state.langOpen ? renderLangPicker() : ''}
+    ${state.explainTile ? renderExplainSheet(state.explainTile.field, personaDef, state.explainTile) : ''}
     ${state.astroOpen ? (state.astroHistShown
       ? renderHistoryModal(state.astroHistShown, nextEvent(state.astroEvents))
       : renderAstroModal(state.astroShown)) : ''}
@@ -595,8 +598,10 @@ function renderBody(personaDef) {
       </div>
 
       <div class="tile-grid">
-        ${view.tiles.map((tl) => `
+        ${view.tiles.map((tl, i) => `
           <div class="tile">
+            ${hasExplainer(tl.field) ? `<button class="tile-info" type="button" data-explain="${i}"
+              aria-label="${t('explain.open')}" title="${t('explain.open')}">i</button>` : ''}
             <div class="eyebrow">${tl.label.toUpperCase()}</div>
             <div class="value-row"><span class="value">${tl.value}</span>${tl.unit ? `<span class="unit">${tl.unit}</span>` : ''}</div>
             <div class="status-row"><span class="status-dot" style="background:${tl.color}"></span><span class="status-text" style="color:${tl.color}">${tl.statusLabel}</span></div>
@@ -765,6 +770,22 @@ function wireEvents() {
   document.getElementById('btn-retry')?.addEventListener('click', () => loadWeather());
   document.getElementById('astro-strip')?.addEventListener('click', openAstro);
   document.getElementById('moon-strip')?.addEventListener('click', openAstro);
+  document.querySelectorAll('[data-explain]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      // The tile itself is not a link, but the assistant's proactive card
+      // sits over it; stop the tap here so only the sheet reacts.
+      e.stopPropagation();
+      const view = buildPersonaView(state.activePersona,
+        personaConfig.personas.find((p) => p.id === state.activePersona), state.metrics, state.travel);
+      state.explainTile = view.tiles[+el.dataset.explain] || null;
+      if (state.explainTile) render();
+    });
+  });
+  const closeExplain = () => { state.explainTile = null; render(); };
+  document.getElementById('explain-ok')?.addEventListener('click', closeExplain);
+  document.getElementById('explain-overlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'explain-overlay') closeExplain();
+  });
   wireAstroCard();
   document.getElementById('astro-ok')?.addEventListener('click', closeAstro);
   document.getElementById('astro-overlay')?.addEventListener('click', (e) => {

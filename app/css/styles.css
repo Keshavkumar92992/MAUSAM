@@ -1220,3 +1220,94 @@ input{font-family:inherit}
 @media (min-width:441px){
   .moon-card{gap:20px;padding:17px 18px}
 }
+
+
+/* ---------- what this number means ----------
+   An ⓘ in the corner of every tile that has an explainer. Deliberately
+   quiet — it is there when you go looking and invisible when you are not —
+   but sized to a real 28px touch target, with the visible disc smaller than
+   the tappable area rather than the other way round. */
+.tile{position:relative}
+.tile-info{
+  position:absolute;top:4px;right:4px;width:28px;height:28px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10.5px;font-weight:700;font-style:italic;line-height:1;
+  color:var(--ink-tertiary);border-radius:50%;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  transition:color .15s ease, background .15s ease;
+}
+.tile-info::before{
+  content:'';position:absolute;width:17px;height:17px;border-radius:50%;
+  border:1.2px solid var(--card-border);
+}
+.tile-info:hover{color:var(--ink)}
+.tile-info:hover::before{border-color:var(--ink-tertiary)}
+.tile-info:active{transform:scale(.9)}
+
+.explain-overlay{
+  position:fixed;inset:0;z-index:70;display:flex;align-items:flex-end;justify-content:center;
+  background:rgba(12,18,28,.5);backdrop-filter:blur(3px);
+  padding:0 0 max(0px, env(safe-area-inset-bottom, 0px));
+}
+.explain-card{
+  width:402px;max-width:100vw;max-height:86vh;overflow-y:auto;
+  background:var(--panel);color:var(--ink);
+  border-radius:26px 26px 0 0;padding:20px 20px 22px;
+  /* Transform-only, no opacity keyframe: an entrance animation that starts
+     at opacity 0 leaves the sheet invisible whenever animations are paused
+     or the keyframe never runs. That has bitten this app twice. */
+  animation:explainUp .24s cubic-bezier(.22,.9,.3,1);
+}
+@keyframes explainUp{from{transform:translateY(14px)}to{transform:translateY(0)}}
+@media (prefers-reduced-motion:reduce){ .explain-card{animation:none} }
+
+.explain-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.explain-eyebrow{font-size:9px;font-weight:700;letter-spacing:.14em;color:var(--ink-tertiary)}
+.explain-title{font-size:19px;font-weight:700;letter-spacing:-.015em;margin:5px 0 0}
+.explain-now{display:flex;align-items:baseline;gap:3px;flex:none}
+.explain-now-value{font-size:26px;font-weight:600;letter-spacing:-.02em}
+.explain-now-unit{font-size:11px;font-weight:600}
+
+/* Says where the number came from. The simulated case is the one that
+   matters: this app carries the IMD's name, and a made-up figure has to
+   admit it on the same screen that shows it, not only in a README. */
+.explain-source{
+  margin-top:13px;padding:7px 11px;border-radius:10px;
+  font-size:11px;font-weight:600;line-height:1.4;
+}
+.explain-source.src-live{background:rgba(46,125,91,.12);color:var(--ok)}
+.explain-source.src-derived{background:rgba(44,110,168,.12);color:var(--info)}
+.explain-source.src-simulated{background:rgba(201,119,42,.14);color:var(--warn)}
+
+.explain-label{
+  margin-top:17px;font-size:9px;font-weight:700;letter-spacing:.14em;color:var(--ink-tertiary);
+}
+.explain-body{margin:6px 0 0;font-size:13px;line-height:1.55;color:var(--ink-secondary)}
+
+.explain-scale{margin-top:9px;display:flex;flex-direction:column;gap:2px}
+.explain-band{
+  display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:9px;
+  font-size:12px;color:var(--ink-secondary);
+}
+.explain-band.mine{background:var(--chip);color:var(--ink);font-weight:600}
+.explain-band-dot{width:8px;height:8px;border-radius:50%;flex:none}
+.explain-band-range{min-width:58px;font-variant-numeric:tabular-nums;font-weight:600}
+.explain-band-label{flex:1;min-width:0}
+.explain-band-you{
+  font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-tertiary);flex:none;
+}
+
+.explain-ok{
+  margin-top:20px;width:100%;padding:13px;border-radius:14px;
+  background:var(--chip-on-bg);color:var(--chip-on-ink);
+  font-size:13.5px;font-weight:700;
+}
+.explain-ok:active{transform:scale(.985)}
+
+/* Desktop shows the app in a phone frame, so the sheet stays phone-width and
+   simply centres itself rather than stretching. */
+@media (min-width:441px){
+  .explain-card{border-radius:26px;margin-bottom:24px}
+  .explain-overlay{align-items:center}
+}

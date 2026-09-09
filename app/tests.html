@@ -52,6 +52,8 @@ function near(name, got, want, tol, unit = '') {
 const MIN = 60000, HOUR = 3600000, DAY = 86400000;
 
 // ---------------------------------------------------------------- dusk ----
+const { t: i18nT } = await import('./js/i18n.js');
+await import('./js/i18nStrings.js');
 const dusk = await import('./js/dusk.js');
 group('dusk.js — how dark, and when');
 {
@@ -277,6 +279,105 @@ group('sky.js — a theme per condition');
   is('mixHex pads single digits', sky.mixHex('#000000', '#0f0f0f', 0.5), '#080808');
 }
 
+// ---------------------------------------------------------------- state ----
+const utils = await import('./js/utils.js');
+group('utils.js — the saved city guard');
+{
+  const good = { name: 'New Delhi', admin1: 'Delhi', lat: 28.6139, lon: 77.209 };
+  truthy('a good city passes through', utils.validCity(good)?.lat === 28.6139);
+  is('coordinates arrive as numbers even when stored as strings',
+    utils.validCity({ name: 'X', lat: '28.6', lon: '77.2' })?.lat, 28.6);
+  for (const junk of [null, undefined, {}, 'New Delhi', 42, [],
+    { name: 'X', lat: 'abc', lon: 'def' },
+    { name: 'X', lat: null, lon: null },
+    { name: 'X', lat: NaN, lon: 0 },
+    { name: 'X', lat: 999, lon: 0 },
+    { name: 'X', lat: 0, lon: -999 },
+    { name: '', lat: 1, lon: 1 },
+    { name: '   ', lat: 1, lon: 1 },
+    { lat: 1, lon: 1 }]) {
+    if (utils.validCity(junk) !== null) { bad('rejects unusable cities', JSON.stringify(junk) + ' passed'); break; }
+  }
+  ok('rejects every unusable shape (missing, wrong type, out of range, unnamed)');
+  truthy('extra fields survive the guard', utils.validCity({ ...good, country: 'India' })?.country === 'India');
+}
+
+// ------------------------------------------------------------- explain ----
+const explain = await import('./js/explain.js');
+group('explain.js — one ⓘ per measurement');
+{
+  const cfg = await (await fetch('./data/persona-config.json')).json();
+  const fields = new Set();
+  for (const p of cfg.personas) for (const t of (p.tiles || [])) fields.add(t.field);
+
+  const noText = [...fields].filter((f) => !explain.hasExplainer(f));
+  truthy(`every one of the ${fields.size} tile fields has an explainer`, !noText.length, noText.join(', '));
+
+  // The reverse: an explainer for a field no tile uses is text nobody reads.
+  const sheet = explain.renderExplainSheet([...fields][0], cfg.personas[0], null);
+  truthy('the sheet renders', sheet.includes('explain-card'));
+
+  const problems = [];
+  for (const p of cfg.personas) {
+    for (const tdef of (p.tiles || [])) {
+      const tl = { label: tdef.label, value: '42', unit: tdef.unit, color: '#000', field: tdef.field };
+      const html = explain.renderExplainSheet(tdef.field, p, tl);
+      if (!html) { problems.push(`${tdef.field}: no sheet`); continue; }
+      const probe = document.createElement('div'); probe.innerHTML = html;
+      const text = probe.innerText || probe.textContent;
+      if (text.includes('{{')) problems.push(`${tdef.field}: unsubstituted placeholder`);
+      if (/undefined|NaN/.test(text)) problems.push(`${tdef.field}: ${text.match(/\S*(undefined|NaN)\S*/)[0]}`);
+      if (!/WHAT IT IS|यह क्या है|এটি কী|இது என்ன/i.test(text)) problems.push(`${tdef.field}: no "what" section`);
+      // A banded tile must show its bands; an unbanded one must not invent any.
+      const bands = probe.querySelectorAll('.explain-band').length;
+      if (tdef.thresholds && bands !== tdef.thresholds.length) problems.push(`${tdef.field}: ${bands} bands, config has ${tdef.thresholds.length}`);
+      if (!tdef.thresholds && bands) problems.push(`${tdef.field}: invented ${bands} bands`);
+    }
+  }
+  truthy('every field renders a complete, clean sheet with the config’s own bands', !problems.length,
+    problems.slice(0, 8).join('\n          '));
+
+  // The highlighted band must be the one whose label the tile is showing —
+  // that is the whole promise of the scale strip.
+  const withBands = cfg.personas.flatMap((p) => (p.tiles || []).filter((t) => t.thresholds).map((t) => [p, t]));
+  let mismatch = null;
+  for (const [p, tdef] of withBands) {
+    for (const [, , , label] of tdef.thresholds) {
+      const shown = i18nT('status.' + label);
+      const probe = document.createElement('div');
+      probe.innerHTML = explain.renderExplainSheet(tdef.field, p,
+        { label: tdef.label, value: '1', unit: '', color: '#000', statusLabel: shown, field: tdef.field });
+      const marked = [...probe.querySelectorAll('.explain-band.mine')];
+      if (marked.length !== 1) { mismatch = `${tdef.field}/${label}: ${marked.length} bands marked`; break; }
+      if (!marked[0].textContent.includes(shown)) { mismatch = `${tdef.field}/${label}: marked the wrong band`; break; }
+    }
+    if (mismatch) break;
+  }
+  truthy('the marked band is always the one the tile is showing', !mismatch, mismatch);
+
+  // Nine fields have no live source. Saying so is the point.
+  const simulated = ['pollen_index', 'wave_height_m', 'sea_temp_c', 'safety_flag', 'rip_current', 'delay_min'];
+  const unlabelled = simulated.filter((f) => {
+    const p = cfg.personas.find((x) => (x.tiles || []).some((t) => t.field === f));
+    const tdef = p.tiles.find((t) => t.field === f);
+    const probe = document.createElement('div');
+    probe.innerHTML = explain.renderExplainSheet(f, p, { label: tdef.label, value: '1', unit: '', color: '#000', field: f });
+    return !probe.querySelector('.explain-source.src-simulated');
+  });
+  truthy('every simulated field says on the sheet that it is simulated', !unlabelled.length, unlabelled.join(', '));
+
+  // …and nothing real is mislabelled as made up.
+  const live = ['aqi_pm25', 'uv_index', 'humidity', 'rain_48h_mm', 'soil_moisture_pct', 'visibility_km'];
+  const mislabelled = live.filter((f) => {
+    const p = cfg.personas.find((x) => (x.tiles || []).some((t) => t.field === f));
+    const tdef = p.tiles.find((t) => t.field === f);
+    const probe = document.createElement('div');
+    probe.innerHTML = explain.renderExplainSheet(f, p, { label: tdef.label, value: '1', unit: '', color: '#000', field: f });
+    return !probe.querySelector('.explain-source.src-live');
+  });
+  truthy('no measured field is labelled simulated', !mislabelled.length, mislabelled.join(', '));
+}
+
 // ---------------------------------------------------------------- i18n ----
 const i18n = await import('./js/i18n.js');
 await import('./js/i18nStrings.js');
@@ -445,15 +546,30 @@ group('the home screen — every persona, every language');
 
   group('the home screen — interaction and resilience');
   // Corrupt state must not brick the app: it is the first thing read, before
-  // anything is on screen.
-  for (const junk of ['not json at all', '{"locale":', '{"city":{"lat":"abc"}}', 'null', '[]']) {
+  // anything is on screen. "Rendered something" is too weak a bar — the
+  // first version of this test passed while the app sat on a permanent
+  // error card, because a saved city with lat:"abc" produces a 400 on every
+  // request and a Try again that can never succeed. Require recovery.
+  const corrupt = [
+    'not json at all', '{"locale":', 'null', '[]',
+    '{"city":{"name":"X","lat":"abc","lon":"def"}}',
+    '{"city":{"name":"X","lat":null,"lon":null}}',
+    '{"city":{"name":"X","lat":999,"lon":999}}',
+    '{"city":{"lat":28.6,"lon":77.2}}',
+    '{"city":"New Delhi"}',
+  ];
+  const stuck = [];
+  for (const junk of corrupt) {
     localStorage.setItem('mausam.state.v1', junk);
     const w = await load('./index.html');
-    const text = await settle(w, 3500);
-    if (!text || text.length < 40) { bad('survives corrupt saved state', `${junk} rendered ${text.length} chars`); break; }
+    const text = await settle(w, 6000);
+    const recovered = w.document.querySelectorAll('.tile').length > 0 || /\d+°/.test(text);
+    if (!text || text.length < 40) stuck.push(`${junk}: rendered ${text.length} chars`);
+    else if (!recovered) stuck.push(`${junk}: no data, stuck on the error card`);
   }
   localStorage.removeItem('mausam.state.v1');
-  ok('survives corrupt / malformed saved state');
+  truthy('corrupt saved state falls back to a city that actually works', !stuck.length,
+    stuck.join('\n          '));
 
   const w = await load('./index.html');
   await settle(w);

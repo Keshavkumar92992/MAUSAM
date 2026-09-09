@@ -27,9 +27,12 @@ function noteFor(s) {
     : t('travel.note_fine', { condition: t(s.conditionKey) });
 }
 
-function tile(label, value, unit, tone, statusLabel, pctValue, pctMax) {
+// `field` is the config key this tile is built from. It travels with the
+// tile so the ⓘ can find both the explainer text and the very thresholds
+// severity.js just used to colour it — nothing has to guess from the label.
+function tile(label, value, unit, tone, statusLabel, pctValue, pctMax, field) {
   const pct = Math.max(4, Math.min(100, Math.round(((pctValue ?? 0) / (pctMax || 100)) * 100)));
-  return { label, value, unit, tone, color: TONE_COLOR[tone], statusLabel, pct: pct + '%' };
+  return { label, value, unit, tone, color: TONE_COLOR[tone], statusLabel, pct: pct + '%', field };
 }
 
 function findThresholds(personaDef, field) {
@@ -85,10 +88,10 @@ export function buildPersonaView(id, personaDef, metrics, travel) {
       return {
         summary: t('summary.health'),
         tiles: [
-          tile(t('tile.aqi'), M.aqi_pm25, 'AQI', aqi.tone, st(aqi.label), M.aqi_pm25, 300),
-          tile(t('tile.pollen'), st(pollen.label), '', pollen.tone, t(M.mocked.pollen_note_key), M.mocked.pollen_index, 9),
-          tile(t('tile.uv'), M.uv_index, t('unit.of_11'), uv.tone, st(uv.label), M.uv_index, 11),
-          tile(t('tile.humidity'), M.humidityNow, '%', hum.tone, st(hum.label), M.humidityNow, 100),
+          tile(t('tile.aqi'), M.aqi_pm25, 'AQI', aqi.tone, st(aqi.label), M.aqi_pm25, 300, 'aqi_pm25'),
+          tile(t('tile.pollen'), st(pollen.label), '', pollen.tone, t(M.mocked.pollen_note_key), M.mocked.pollen_index, 9, 'pollen_index'),
+          tile(t('tile.uv'), M.uv_index, t('unit.of_11'), uv.tone, st(uv.label), M.uv_index, 11, 'uv_index'),
+          tile(t('tile.humidity'), M.humidityNow, '%', hum.tone, st(hum.label), M.humidityNow, 100, 'humidity'),
         ],
         panel: {
           title: t('panel.health_title'), meta: t('panel.health_meta'),
@@ -112,10 +115,10 @@ export function buildPersonaView(id, personaDef, metrics, travel) {
       return {
         summary: t('summary.fitness'),
         tiles: [
-          tile(t('tile.best_run_window'), run.text, run.sub || '', 'ok', run.note, 70, 100),
-          tile(t('tile.wind'), M.wind_speed, 'km/h', wind.tone, st(wind.label), M.wind_speed, 30),
-          tile(t('tile.heat_index'), M.feelsLikeMax, '°C', heat.tone, st(heat.label), M.feelsLikeMax, 45),
-          tile(t('tile.hydration'), hydration.label, '', hydration.tone, hydration.note, M.feelsLikeMax, 45),
+          tile(t('tile.best_run_window'), run.text, run.sub || '', 'ok', run.note, 70, 100, 'best_run_window'),
+          tile(t('tile.wind'), M.wind_speed, 'km/h', wind.tone, st(wind.label), M.wind_speed, 30, 'wind_speed'),
+          tile(t('tile.heat_index'), M.feelsLikeMax, '°C', heat.tone, st(heat.label), M.feelsLikeMax, 45, 'feels_like_max'),
+          tile(t('tile.hydration'), hydration.label, '', hydration.tone, hydration.note, M.feelsLikeMax, 45, 'hydration_need'),
         ],
         panel: {
           title: t('panel.fitness_title'), meta: t('panel.fitness_meta'),
@@ -138,10 +141,10 @@ export function buildPersonaView(id, personaDef, metrics, travel) {
       return {
         summary: M.city,
         tiles: [
-          tile(t('tile.wave_height'), M.mocked.wave_height_m, 'm', wave.tone, st(wave.label), M.mocked.wave_height_m, 2),
-          tile(t('tile.sea_temp'), M.mocked.sea_temp_c, '°C', sea.tone, st(sea.label), M.mocked.sea_temp_c, 32),
-          tile(t('tile.safety_flag'), t('val.flag_' + M.mocked.safety_flag), '', flag.tone, st(flag.label), 60, 100),
-          tile(t('tile.rip_current'), t('val.rip_' + M.mocked.rip_current), '', rip.tone, st(rip.label), rip.tone === 'bad' ? 90 : rip.tone === 'warn' ? 55 : 20, 100),
+          tile(t('tile.wave_height'), M.mocked.wave_height_m, 'm', wave.tone, st(wave.label), M.mocked.wave_height_m, 2, 'wave_height_m'),
+          tile(t('tile.sea_temp'), M.mocked.sea_temp_c, '°C', sea.tone, st(sea.label), M.mocked.sea_temp_c, 32, 'sea_temp_c'),
+          tile(t('tile.safety_flag'), t('val.flag_' + M.mocked.safety_flag), '', flag.tone, st(flag.label), 60, 100, 'safety_flag'),
+          tile(t('tile.rip_current'), t('val.rip_' + M.mocked.rip_current), '', rip.tone, st(rip.label), rip.tone === 'bad' ? 90 : rip.tone === 'warn' ? 55 : 20, 100, 'rip_current'),
         ],
         panel: {
           title: t('panel.beach_title'), meta: t('panel.beach_meta'),
@@ -168,10 +171,10 @@ export function buildPersonaView(id, personaDef, metrics, travel) {
       return {
         summary: t('summary.travel_n', { n: savedCount, s: savedCount === 1 ? '' : 's' }),
         tiles: [
-          tile(t('tile.flight_risk', { code: airportCode(M.city) }), flight.label, '', flight.tone, t('val.visibility_km', { km: originVis }), originVis, 10),
-          tile(t('tile.rain_arrival'), dest ? dest.precipProbMax : '—', dest ? '%' : '', destPrecip.tone, dest ? t('val.condition_in', { condition: st(destPrecip.label), city: dest.name }) : t('val.add_destination'), dest?.precipProbMax || 0, 100),
-          tile(t('tile.temp_swing'), dest ? Math.abs(tempDelta) : '—', dest ? '°C' : '', 'info', dest ? t('val.temp_swing_note', { city: M.city, temp1: M.tempNow, dest: dest.name, temp2: dest.tempNow }) : '—', Math.abs(tempDelta), 20),
-          tile(t('tile.packing'), items.length, t('unit.items'), 'info', items.length ? cap(items.join(', ')) : t('val.nothing_critical'), items.length, 3),
+          tile(t('tile.flight_risk', { code: airportCode(M.city) }), flight.label, '', flight.tone, t('val.visibility_km', { km: originVis }), originVis, 10, 'flight_risk'),
+          tile(t('tile.rain_arrival'), dest ? dest.precipProbMax : '—', dest ? '%' : '', destPrecip.tone, dest ? t('val.condition_in', { condition: st(destPrecip.label), city: dest.name }) : t('val.add_destination'), dest?.precipProbMax || 0, 100, 'dest_precip_prob'),
+          tile(t('tile.temp_swing'), dest ? Math.abs(tempDelta) : '—', dest ? '°C' : '', 'info', dest ? t('val.temp_swing_note', { city: M.city, temp1: M.tempNow, dest: dest.name, temp2: dest.tempNow }) : '—', Math.abs(tempDelta), 20, 'temp_delta'),
+          tile(t('tile.packing'), items.length, t('unit.items'), 'info', items.length ? cap(items.join(', ')) : t('val.nothing_critical'), items.length, 3, 'packing_items'),
         ],
         panel: {
           title: t('panel.travel_title'), meta: t('panel.travel_meta'),
@@ -205,10 +208,10 @@ export function buildPersonaView(id, personaDef, metrics, travel) {
       return {
         summary: t('summary.family'),
         tiles: [
-          tile(t('tile.school_commute'), commuteScore.label, '', commuteScore.tone, t('val.commute_note', { condition: t(M.conditionKey), temp: Math.round(morningFeels) }), commuteScore.tone === 'ok' ? 25 : commuteScore.tone === 'warn' ? 55 : 85, 100),
-          tile(t('tile.rain_3pm'), Math.round(precip1500), '%', rain3pm.tone, st(rain3pm.label), precip1500, 100),
-          tile(t('tile.playtime'), playtime, t('unit.of_10'), playTone, t(playTone === 'ok' ? 'val.good_outdoor' : playTone === 'warn' ? 'val.limit_outdoor' : 'val.indoor_advised'), playtime, 10),
-          tile(t('tile.aqi_kids'), M.aqi_pm25, 'AQI', aqiKids.tone, st(aqiKids.label), M.aqi_pm25, 300),
+          tile(t('tile.school_commute'), commuteScore.label, '', commuteScore.tone, t('val.commute_note', { condition: t(M.conditionKey), temp: Math.round(morningFeels) }), commuteScore.tone === 'ok' ? 25 : commuteScore.tone === 'warn' ? 55 : 85, 100, 'commute_score'),
+          tile(t('tile.rain_3pm'), Math.round(precip1500), '%', rain3pm.tone, st(rain3pm.label), precip1500, 100, 'precip_prob_1500'),
+          tile(t('tile.playtime'), playtime, t('unit.of_10'), playTone, t(playTone === 'ok' ? 'val.good_outdoor' : playTone === 'warn' ? 'val.limit_outdoor' : 'val.indoor_advised'), playtime, 10, 'playtime_index'),
+          tile(t('tile.aqi_kids'), M.aqi_pm25, 'AQI', aqiKids.tone, st(aqiKids.label), M.aqi_pm25, 300, 'aqi_pm25'),
         ],
         panel: {
           title: t('panel.family_title'), meta: t('panel.family_meta'),
@@ -233,10 +236,10 @@ export function buildPersonaView(id, personaDef, metrics, travel) {
       return {
         summary: M.city,
         tiles: [
-          tile(t('tile.soil_moisture'), M.soil_moisture_pct, t('unit.pct_vol'), soil.tone, st(soil.label), M.soil_moisture_pct, 100),
-          tile(t('tile.rainfall_48h'), M.rain_48h_mm, 'mm', rain48.tone, st(rain48.label), M.rain_48h_mm, 60),
-          tile(t('tile.frost_risk'), st(frost.label), '', frost.tone, t('val.min_temp_note', { temp: M.min_temp_c }), Math.max(0, 20 - M.min_temp_c) * 5, 100),
-          tile(t('tile.wind_gusts'), M.gustsMaxToday, 'km/h', gusts.tone, st(gusts.label), M.gustsMaxToday, 60),
+          tile(t('tile.soil_moisture'), M.soil_moisture_pct, t('unit.pct_vol'), soil.tone, st(soil.label), M.soil_moisture_pct, 100, 'soil_moisture_pct'),
+          tile(t('tile.rainfall_48h'), M.rain_48h_mm, 'mm', rain48.tone, st(rain48.label), M.rain_48h_mm, 60, 'rain_48h_mm'),
+          tile(t('tile.frost_risk'), st(frost.label), '', frost.tone, t('val.min_temp_note', { temp: M.min_temp_c }), Math.max(0, 20 - M.min_temp_c) * 5, 100, 'min_temp_c'),
+          tile(t('tile.wind_gusts'), M.gustsMaxToday, 'km/h', gusts.tone, st(gusts.label), M.gustsMaxToday, 60, 'gusts_kmh'),
         ],
         panel: {
           title: t('panel.agri_title'), meta: t('panel.agri_meta'),
@@ -259,10 +262,10 @@ export function buildPersonaView(id, personaDef, metrics, travel) {
       return {
         summary: M.city,
         tiles: [
-          tile(t('tile.visibility'), M.visibility_km, 'km', vis.tone, st(vis.label), M.visibility_km, 10),
-          tile(t('tile.road_spray'), spray.label, '', spray.tone, M.precip_prob_max24 > 60 ? t('val.waterlogging_risk') : t('val.roads_dry'), M.precip_prob_max24, 100),
-          tile(t('tile.delay_added'), `+${delay}`, 'min', delay > 20 ? 'warn' : 'ok', t('val.vs_usual_commute'), delay, 40),
-          tile(t('tile.fog_storm'), hazard.label, '', hazard.tone, hazard.tone === 'bad' ? t('val.plan_alt_route') : t('val.no_hazard'), hazard.tone === 'bad' ? 85 : 15, 100),
+          tile(t('tile.visibility'), M.visibility_km, 'km', vis.tone, st(vis.label), M.visibility_km, 10, 'visibility_km'),
+          tile(t('tile.road_spray'), spray.label, '', spray.tone, M.precip_prob_max24 > 60 ? t('val.waterlogging_risk') : t('val.roads_dry'), M.precip_prob_max24, 100, 'road_spray'),
+          tile(t('tile.delay_added'), `+${delay}`, 'min', delay > 20 ? 'warn' : 'ok', t('val.vs_usual_commute'), delay, 40, 'delay_min'),
+          tile(t('tile.fog_storm'), hazard.label, '', hazard.tone, hazard.tone === 'bad' ? t('val.plan_alt_route') : t('val.no_hazard'), hazard.tone === 'bad' ? 85 : 15, 100, 'hazard'),
         ],
         panel: {
           title: t('panel.commute_title'), meta: t('panel.commute_meta'),

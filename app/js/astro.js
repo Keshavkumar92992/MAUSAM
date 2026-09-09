@@ -8,6 +8,7 @@
 // table instead — accurate, free, and it still works with no network.
 import { loadState, saveState } from './utils.js';
 import { t, getLocale, registerEntries } from './i18n.js';
+import { renderMoonCard } from './moon.js';
 
 const SEEN_KEY = 'astroSeen';
 // How far ahead an event may be and still interrupt with a modal. The brief
@@ -343,6 +344,8 @@ export function renderHistoryModal(h, upcoming) {
 
           <ul class="astro-facts"><li>${localized(h.body)}</li></ul>
 
+          ${renderMoonCard()}
+
           ${upcoming ? `<div class="astro-hist-next">${t('astro.hist.next', {
             name: localized(upcoming.name), when: countdownLabel(upcoming).toLowerCase(),
           })}</div>` : ''}
@@ -383,6 +386,8 @@ export function renderAstroModal(ev) {
           <ul class="astro-facts">
             ${(ev.facts || []).map((f) => `<li>${localized(f)}</li>`).join('')}
           </ul>
+
+          ${renderMoonCard()}
         </div>
 
         <div class="astro-actions">

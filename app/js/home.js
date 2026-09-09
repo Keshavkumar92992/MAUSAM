@@ -5,6 +5,8 @@ import { buildTravelData, addSavedCity } from './travel.js';
 import { loadState, saveState, fmtTime } from './utils.js';
 import { ICONS, renderBottomNav, renderStatusBar } from './icons.js';
 import { t, getLocale, setLocale, LOCALES } from './i18n.js';
+import { mountSkyLayers, applySky, moonVisible, mixHex } from './sky.js';
+import { moonNow, renderMoonStrip } from './moon.js';
 import { loadAstroEvents, loadAstroHistory, nextEvent, stripSubject, dueForPopup, markEventSeen,
   renderAstroStrip, renderAstroModal, renderHistoryStrip, renderHistoryModal, wireAstroCard } from './astro.js';
 import { mountAsk, updateAskBadge } from './askUi.js';
@@ -111,6 +113,9 @@ async function init() {
   state.activePersona = saved.activePersona || 'health';
   document.documentElement.lang = getLocale();
 
+  // Before the first render, not after the weather round-trip: applyTheme()
+  // paints the sky on every render, and it needs somewhere to paint it.
+  mountSkyLayers();
   render();
   mountAsk(() => ({ metrics: state.metrics, city: state.city, persona: state.activePersona }));
   await loadWeather();
@@ -148,6 +153,13 @@ function closeAstro() {
   if (state.astroShown) markEventSeen(state.astroShown.id);
   state.astroOpen = false;
   render();
+}
+
+// After dark, and only under a sky you could actually see it through, the
+// moon sits with the sky-event strip rather than in a section of its own.
+// The full card lives in the astronomy sheet, which is always reachable.
+function moonStripHtml() {
+  return moonVisible(state.metrics?.conditionKey, isNight()) ? renderMoonStrip(moonNow()) : '';
 }
 
 function astroStripHtml() {
@@ -399,14 +411,6 @@ function duskLevel() {
 // down — which is where the palette changes sides.
 const SUNSET_POINT = DUSK_BEFORE_SET / (DUSK_BEFORE_SET + DUSK_AFTER_SET);
 
-// Straight sRGB lerp — this only feeds the browser chrome colour, where a
-// perceptual blend would not be worth carrying a colour library for.
-function mixHex(from, to, k) {
-  const ch = (h, i) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16);
-  const out = [0, 1, 2].map((i) => Math.round(ch(from, i) + (ch(to, i) - ch(from, i)) * k));
-  return '#' + out.map((v) => v.toString(16).padStart(2, '0')).join('');
-}
-
 // Publishes the dial in the three forms the stylesheet wants: the raw
 // level, which side of sunset we are on, and how far past it. The palette
 // side is deliberately not a fraction — see the note at the top of the
@@ -427,12 +431,18 @@ function applyTheme() {
     'content',
     night ? mixHex('#223047', '#101825', deep) : '#F5F4EF'
   );
+  // The weather rides the same tick: which sky to paint depends on the
+  // condition and on which side of sunset we are, so there is exactly one
+  // place that decides both.
+  applySky(state.metrics?.conditionKey, night, deep);
   return night;
 }
 
 // The dial has to keep moving while the page just sits open through sunset.
 // Only the crossover needs a re-render — the depth and every token are
 // already live in CSS — so the minute tick is nearly free.
+const isNight = () => document.documentElement.dataset.theme === 'dark';
+
 let lastNight = null;
 function startDuskClock() {
   setInterval(() => {
@@ -440,20 +450,6 @@ function startDuskClock() {
     if (lastNight !== null && night !== lastNight) render();
     lastNight = night;
   }, 60000);
-}
-
-function skyGradient(night) {
-  const h = new Date().getHours();
-  if (night) {
-    // Deep sky down into the page colour, so the gradient and the sheet
-    // below it never show a seam.
-    return h >= 4 && h < 6
-      ? 'linear-gradient(180deg,#243550 0%,#1B2740 40%,#151E2E 78%,#101825 100%)'
-      : 'linear-gradient(180deg,#16203A 0%,#141C30 42%,#121926 78%,#101825 100%)';
-  }
-  if (h >= 5 && h < 11) return 'linear-gradient(180deg,#B9D9F2 0%,#D7E7F2 42%,#EFEDE6 78%,#F5F4EF 100%)';
-  if (h >= 11 && h < 17) return 'linear-gradient(180deg,#9EC9EC 0%,#CFE2EF 40%,#EEEDE5 78%,#F5F4EF 100%)';
-  return 'linear-gradient(180deg,#F2C9A4 0%,#EFD9C6 38%,#F0EBE2 78%,#F5F4EF 100%)';
 }
 
 function render() {
@@ -475,8 +471,7 @@ function render() {
   root.innerHTML = `
     ${renderStatusBar(dark)}
 
-    <div class="sky-gradient" style="background:${skyGradient(false)}"></div>
-    <div class="sky-gradient night" style="background:${skyGradient(true)}"></div>
+    <div class="sky-gradient"></div>
     <div class="texture-glow"></div>
     <div class="texture-grain"></div>
 
@@ -632,6 +627,7 @@ function renderError() {
             service, so they stay on screen when it is unreachable rather
             than leaving the user with nothing but an error. */ ''}
       ${astroStripHtml()}
+      ${moonStripHtml()}
     </div>
   `;
 }
@@ -684,6 +680,7 @@ function renderBody(personaDef) {
       </div>
 
       ${astroStripHtml()}
+      ${moonStripHtml()}
 
       ${renderOutlook()}
 
@@ -814,6 +811,7 @@ function wireEvents() {
   document.getElementById('btn-save-dest')?.addEventListener('click', saveDestination);
   document.getElementById('btn-retry')?.addEventListener('click', () => loadWeather());
   document.getElementById('astro-strip')?.addEventListener('click', openAstro);
+  document.getElementById('moon-strip')?.addEventListener('click', openAstro);
   wireAstroCard();
   document.getElementById('astro-ok')?.addEventListener('click', closeAstro);
   document.getElementById('astro-overlay')?.addEventListener('click', (e) => {

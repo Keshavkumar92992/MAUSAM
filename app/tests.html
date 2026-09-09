@@ -49,6 +49,19 @@ function near(name, got, want, tol, unit = '') {
     : bad(name, `got ${got}, wanted ${want} ±${tol}${unit}`);
 }
 
+// A module that fails to parse rejects its import, the top-level await
+// chain unwinds, and the page sits on "running…" with no clue why. That
+// cost real time once. Say what broke instead.
+const died = (what, err) => {
+  fail++;
+  out.insertAdjacentHTML('beforeend',
+    `<div class="row fail">  FAIL  the run stopped — ${what}\n          ${err}</div>`);
+  document.getElementById('tally').innerHTML =
+    `<span class="fail">STOPPED</span> — ${pass} passed before it died`;
+};
+addEventListener('error', (e) => died('an uncaught error', e.message));
+addEventListener('unhandledrejection', (e) => died('a rejected promise', e.reason?.message || e.reason));
+
 const MIN = 60000, HOUR = 3600000, DAY = 86400000;
 
 // This page shares an origin with the app, so whatever language you last
@@ -425,6 +438,51 @@ group('explain.js — one ⓘ per measurement');
   }
   truthy('every field renders a complete, clean sheet with the config’s own bands', !problems.length,
     problems.slice(0, 8).join('\n          '));
+
+  // Every band has to carry its own line of advice, in every language. A
+  // gap here is a band that shows a range and a name and then leaves the
+  // reader exactly where the scale alone left them.
+  {
+    const back2 = i18nPin.getLocale();
+    const gaps = [];
+    for (const loc of ['en', 'hi', 'bn', 'ta']) {
+      i18nPin.setLocale(loc);
+      for (const p of cfg.personas) {
+        for (const tdef of (p.tiles || [])) {
+          if (!tdef.thresholds) continue;
+          const probe = document.createElement('div');
+          probe.innerHTML = explain.renderExplainSheet(tdef.field, p,
+            { label: tdef.label, value: '1', unit: '', color: '#000', field: tdef.field });
+          const bands = probe.querySelectorAll('.explain-band');
+          const dos = probe.querySelectorAll('.explain-band-do');
+          if (dos.length !== bands.length) {
+            gaps.push(`${loc} ${tdef.field}: ${dos.length} of ${bands.length} bands advised`);
+          }
+          for (const n of dos) {
+            const txt = (n.textContent || '').trim();
+            if (!txt || txt.length < 12) gaps.push(`${loc} ${tdef.field}: "${txt}"`);
+          }
+        }
+      }
+    }
+    i18nPin.setLocale(back2);
+    truthy('every band in every language carries a line of advice', !gaps.length,
+      gaps.slice(0, 8).join('\n          '));
+  }
+
+  // A band with no thresholds must not sprout advice out of nowhere, and a
+  // field must never show another field's line.
+  {
+    const agri = cfg.personas.find((p) => p.id === 'agri');
+    const probe = document.createElement('div');
+    probe.innerHTML = explain.renderExplainSheet('rain_48h_mm', agri,
+      { label: 'Rainfall 48 h', value: '0', unit: 'mm', color: '#000', field: 'rain_48h_mm' });
+    const dos = [...probe.querySelectorAll('.explain-band-do')].map((n) => n.textContent);
+    is('the heaviest rainfall band says not to irrigate',
+      /not water the field|पानी मत|জল দেবেন না|நீர் பாய்ச்ச வேண்டாம்/.test(dos[dos.length - 1]), true);
+    is('the lightest band says the opposite',
+      /irrigate as planned|पानी दे दीजिए|সেচ দিন|பாசனம் செய்யுங்கள்/.test(dos[0]), true);
+  }
 
   // The highlighted band must be the one whose label the tile is showing —
   // that is the whole promise of the scale strip.

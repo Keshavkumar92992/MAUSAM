@@ -28,6 +28,7 @@ registerEntries({
   'explain.title': { en: 'About this number', hi: 'इस आंकड़े के बारे में', bn: 'এই সংখ্যাটি সম্পর্কে', ta: 'இந்த எண்ணைப் பற்றி' },
   'explain.what': { en: 'WHAT IT IS', hi: 'यह क्या है', bn: 'এটি কী', ta: 'இது என்ன' },
   'explain.how': { en: 'HOW IT IS MEASURED', hi: 'कैसे मापा जाता है', bn: 'কীভাবে মাপা হয়', ta: 'எப்படி அளக்கப்படுகிறது' },
+  'explain.scale_hint': { en: 'What to do in each band', hi: 'हर श्रेणी में क्या करें', bn: 'প্রতিটি মাত্রায় কী করবেন', ta: 'ஒவ்வொரு நிலையிலும் என்ன செய்வது' },
   'explain.scale': { en: 'THE SCALE', hi: 'श्रेणियाँ', bn: 'মাত্রা', ta: 'அளவுகோல்' },
   'explain.reading': { en: 'Your reading', hi: 'आपका आंकड़ा', bn: 'আপনার পাঠ', ta: 'உங்கள் அளவு' },
   'explain.close': { en: 'Close', hi: 'बंद करें', bn: 'বন্ধ করুন', ta: 'மூடு' },
@@ -447,6 +448,118 @@ const EXPLAIN = {
   },
 };
 
+
+// What to actually do in each band.
+//
+// The scale on its own is a reference table: it tells you that 45 mm is
+// "Heavy" and leaves you there. For the person the tile is for, the useful
+// sentence is the next one — do not irrigate, delay the spray, keep the
+// children in. Keyed by the field and by the band's own English label,
+// which is the same key persona-config.json and severity.js already use, so
+// a band cannot end up with advice belonging to a different band.
+//
+// Two things these lines are careful about. They stay operational and
+// short — one clause, no hedging paragraph. And where the reading is
+// simulated rather than measured (the whole beach set), they defer to the
+// person or sign actually there instead of sounding authoritative about a
+// number this app made up.
+const ADVICE = {
+  aqi_pm25: {
+    'Good': { en: 'Fine for outdoor exercise, including for children and older people.', hi: 'बाहर व्यायाम के लिए ठीक है — बच्चों और बुज़ुर्गों के लिए भी।', bn: 'বাইরে ব্যায়ামের জন্য ঠিক আছে — শিশু ও বয়স্কদের জন্যও।', ta: 'வெளியில் உடற்பயிற்சிக்கு சரி — குழந்தைகள், முதியவர்களுக்கும் கூட.' },
+    'Satisfactory': { en: 'Fine for most people; unusually sensitive lungs may notice it.', hi: 'ज़्यादातर लोगों के लिए ठीक; बहुत संवेदनशील फेफड़ों को महसूस हो सकता है।', bn: 'বেশির ভাগ মানুষের জন্য ঠিক; খুব সংবেদনশীল ফুসফুসে টের পাওয়া যেতে পারে।', ta: 'பெரும்பாலானோருக்கு சரி; மிக உணர்திறன் மிக்க நுரையீரலுக்குத் தெரியலாம்.' },
+    'Moderate–poor': { en: 'Shift hard exercise indoors or to early morning. Asthma inhalers to hand.', hi: 'कड़ी कसरत घर के अंदर या सुबह जल्दी करें। दमे का पंप पास रखें।', bn: 'ভারী ব্যায়াম ঘরে বা ভোরে সরান। হাঁপানির ইনহেলার হাতের কাছে রাখুন।', ta: 'கடின உடற்பயிற்சியை உள்ளே அல்லது அதிகாலைக்கு மாற்றுங்கள். ஆஸ்துமா இன்ஹேலரைக் கையில் வையுங்கள்.' },
+    'Poor': { en: 'Keep children and older people indoors. Mask outside; windows shut.', hi: 'बच्चों और बुज़ुर्गों को घर के अंदर रखें। बाहर मास्क; खिड़कियाँ बंद।', bn: 'শিশু ও বয়স্কদের ঘরে রাখুন। বাইরে মাস্ক; জানালা বন্ধ।', ta: 'குழந்தைகளையும் முதியவர்களையும் உள்ளேயே வையுங்கள். வெளியே முகக்கவசம்; ஜன்னல்களை மூடுங்கள்.' },
+    'Severe': { en: 'Avoid going out. If you must, an N95 — a cloth mask does nothing here.', hi: 'बाहर जाने से बचें। जाना ही पड़े तो N95 — कपड़े का मास्क यहाँ बेकार है।', bn: 'বাইরে যাওয়া এড়ান। যেতেই হলে N95 — কাপড়ের মাস্ক এখানে কাজে আসে না।', ta: 'வெளியே செல்வதைத் தவிர்க்கவும். செல்ல வேண்டியிருந்தால் N95 — துணி முகக்கவசம் இங்கு பயனற்றது.' },
+    // aqi_pm25 is banded twice: the health tile has five CPCB steps, the
+    // family tile collapses them into three for children. Same field, same
+    // number, different labels — so both label sets are answered here.
+    'Acceptable': { en: 'Outdoor play is fine, including for asthmatic children.', hi: 'बाहर खेलना ठीक है — दमे वाले बच्चों के लिए भी।', bn: 'বাইরে খেলা ঠিক আছে — হাঁপানির শিশুদের জন্যও।', ta: 'வெளியில் விளையாடுவது சரி — ஆஸ்துமா குழந்தைகளுக்கும் கூட.' },
+    'Sensitive category': { en: 'Shorten outdoor play and keep inhalers at school, not at home.', hi: 'बाहर खेलने का समय कम रखें और इनहेलर स्कूल में रखें, घर पर नहीं।', bn: 'বাইরে খেলার সময় কমান, ইনহেলার স্কুলে রাখুন, বাড়িতে নয়।', ta: 'வெளியில் விளையாடும் நேரத்தைக் குறையுங்கள், இன்ஹேலரைப் பள்ளியில் வையுங்கள், வீட்டில் அல்ல.' },
+    'Avoid outdoors': { en: 'Keep games indoors today — children breathe faster and take in more of it.', hi: 'आज खेल घर के अंदर रखें — बच्चे तेज़ साँस लेते हैं, इसलिए ज़्यादा अंदर लेते हैं।', bn: 'আজ খেলা ঘরের ভিতরে রাখুন — শিশুরা দ্রুত শ্বাস নেয়, তাই বেশি টানে।', ta: 'இன்று விளையாட்டை உள்ளேயே வையுங்கள் — குழந்தைகள் வேகமாக மூச்சுவிடுவதால் அதிகம் உள்ளிழுக்கிறார்கள்.' },
+  },
+  pollen_index: {
+    'Low': { en: 'No precaution needed, even if you usually react.', hi: 'कोई एहतियात ज़रूरी नहीं, चाहे आपको आमतौर पर एलर्जी होती हो।', bn: 'কোনও সতর্কতা লাগবে না, সাধারণত অ্যালার্জি হলেও।', ta: 'எந்த முன்னெச்சரிக்கையும் தேவையில்லை, வழக்கமாக ஒவ்வாமை இருந்தாலும்.' },
+    'Moderate': { en: 'Take antihistamines before going out, not after symptoms start.', hi: 'बाहर निकलने से पहले एलर्जी की दवा लें, लक्षण शुरू होने के बाद नहीं।', bn: 'বেরোনোর আগে অ্যালার্জির ওষুধ নিন, উপসর্গ শুরুর পরে নয়।', ta: 'வெளியே செல்வதற்கு முன் ஒவ்வாமை மருந்து எடுங்கள், அறிகுறி தொடங்கிய பின் அல்ல.' },
+    'High': { en: 'Dry the washing indoors and shower after coming in — pollen travels on clothes and hair.', hi: 'कपड़े घर के अंदर सुखाएँ और आकर नहाएँ — पराग कपड़ों और बालों पर आता है।', bn: 'কাপড় ঘরের ভিতরে শুকান, ফিরে এসে স্নান করুন — পরাগ কাপড় ও চুলে লেগে আসে।', ta: 'துணிகளை உள்ளே காயவைத்து, திரும்பியதும் குளியுங்கள் — மகரந்தம் துணியிலும் முடியிலும் ஒட்டி வரும்.' },
+  },
+  uv_index: {
+    'Low': { en: 'No sunscreen needed for a short spell outside.', hi: 'थोड़ी देर बाहर रहने के लिए सनस्क्रीन की ज़रूरत नहीं।', bn: 'অল্প সময় বাইরে থাকতে সানস্ক্রিন লাগবে না।', ta: 'சிறிது நேரம் வெளியில் இருக்க சன்ஸ்கிரீன் தேவையில்லை.' },
+    'Moderate': { en: 'Sunscreen and a hat if you will be out more than an hour.', hi: 'एक घंटे से ज़्यादा बाहर रहना हो तो सनस्क्रीन और टोपी लें।', bn: 'এক ঘণ্টার বেশি বাইরে থাকলে সানস্ক্রিন ও টুপি নিন।', ta: 'ஒரு மணி நேரத்திற்கு மேல் வெளியில் இருந்தால் சன்ஸ்கிரீனும் தொப்பியும் வேண்டும்.' },
+    'High': { en: 'Seek shade between 11 and 3. Reapply sunscreen every two hours.', hi: '11 से 3 के बीच छाँव में रहें। हर दो घंटे में सनस्क्रीन दोबारा लगाएँ।', bn: '১১টা থেকে ৩টার মধ্যে ছায়ায় থাকুন। প্রতি দু\'ঘণ্টায় সানস্ক্রিন লাগান।', ta: '11 முதல் 3 வரை நிழலில் இருங்கள். இரண்டு மணிக்கு ஒருமுறை சன்ஸ்கிரீன் தடவுங்கள்.' },
+    'Very high': { en: 'Unprotected skin burns in about 15 minutes. Cover up or stay in.', hi: 'बिना बचाव त्वचा लगभग 15 मिनट में जल जाती है। ढककर रखें या अंदर रहें।', bn: 'অরক্ষিত ত্বক প্রায় ১৫ মিনিটে পুড়ে যায়। ঢেকে রাখুন বা ভিতরে থাকুন।', ta: 'பாதுகாப்பில்லாத தோல் சுமார் 15 நிமிடத்தில் கருகும். மூடி வையுங்கள் அல்லது உள்ளே இருங்கள்.' },
+  },
+  humidity: {
+    'Dry': { en: 'Drink more than thirst suggests — you lose water without feeling sweaty.', hi: 'प्यास से ज़्यादा पानी पिएँ — पसीना महसूस हुए बिना पानी निकलता रहता है।', bn: 'তেষ্টার চেয়ে বেশি জল খান — ঘাম টের না পেয়েও জল বেরিয়ে যায়।', ta: 'தாகத்தைவிட அதிகம் குடியுங்கள் — வியர்வை தெரியாமலேயே நீர் இழக்கிறீர்கள்.' },
+    'Comfortable': { en: 'Sweat evaporates freely — nothing to plan around.', hi: 'पसीना आसानी से सूखता है — कुछ ख़ास सोचने की ज़रूरत नहीं।', bn: 'ঘাম সহজে শুকোয় — বিশেষ কিছু ভাবার নেই।', ta: 'வியர்வை எளிதில் ஆவியாகும் — தனியாக எதுவும் திட்டமிட வேண்டாம்.' },
+    'Muggy, low comfort': { en: 'Sweat cannot evaporate, so heat builds up. Cut the pace and rest in shade.', hi: 'पसीना सूख नहीं पाता, गर्मी शरीर में जमा होती है। रफ़्तार कम करें, छाँव में सुस्ताएँ।', bn: 'ঘাম শুকোতে পারে না, তাই তাপ জমে। গতি কমান, ছায়ায় বিশ্রাম নিন।', ta: 'வியர்வை ஆவியாக முடியாததால் வெப்பம் தேங்கும். வேகத்தைக் குறைத்து நிழலில் இளைப்பாறுங்கள்.' },
+  },
+  wind_speed: {
+    'Light': { en: 'No effect on your pace either way.', hi: 'आपकी रफ़्तार पर कोई असर नहीं।', bn: 'আপনার গতিতে কোনও প্রভাব নেই।', ta: 'உங்கள் வேகத்தில் எந்தத் தாக்கமும் இல்லை.' },
+    'Breezy': { en: 'Head into it on the way out, so it pushes you home when you are tired.', hi: 'जाते समय हवा के सामने चलें, ताकि लौटते समय थकान में वो पीछे से धकेले।', bn: 'যাওয়ার সময় বাতাসের দিকে মুখ করে চলুন, ফেরার সময় ক্লান্তিতে সে পিছন থেকে ঠেলবে।', ta: 'செல்லும்போது காற்றுக்கு எதிராகச் செல்லுங்கள், திரும்பும்போது சோர்வில் அது பின்னால் தள்ளும்.' },
+    'Strong': { en: 'Adds real effort and chills sweat fast. Shorten the route.', hi: 'मेहनत काफ़ी बढ़ जाती है और पसीना जल्दी ठंडा करती है। रास्ता छोटा रखें।', bn: 'পরিশ্রম বেশ বাড়ে আর ঘাম দ্রুত ঠান্ডা করে। পথ ছোট রাখুন।', ta: 'உழைப்பு அதிகரிக்கும், வியர்வையை வேகமாகக் குளிர்விக்கும். பாதையைக் குறைக்கவும்.' },
+  },
+  feels_like_max: {
+    'Safe': { en: 'Normal training load is fine.', hi: 'सामान्य अभ्यास ठीक है।', bn: 'স্বাভাবিক অনুশীলন ঠিক আছে।', ta: 'வழக்கமான பயிற்சி சரி.' },
+    'Caution': { en: 'Cut intensity, drink every 20 minutes, and stop if you stop sweating.', hi: 'तीव्रता कम करें, हर 20 मिनट में पानी पिएँ, और पसीना आना बंद हो तो रुक जाएँ।', bn: 'তীব্রতা কমান, প্রতি ২০ মিনিটে জল খান, ঘাম বন্ধ হলে থামুন।', ta: 'தீவிரத்தைக் குறையுங்கள், 20 நிமிடத்திற்கு ஒருமுறை குடியுங்கள், வியர்வை நின்றால் நிறுத்துங்கள்.' },
+    'Danger': { en: 'Heatstroke range. Move the session indoors or to before sunrise.', hi: 'लू लगने का दायरा। अभ्यास घर के अंदर या सूर्योदय से पहले करें।', bn: 'হিটস্ট্রোকের সীমা। অনুশীলন ঘরে বা সূর্যোদয়ের আগে সরান।', ta: 'வெப்பத்தாக்க எல்லை. பயிற்சியை உள்ளே அல்லது சூரிய உதயத்திற்கு முன் மாற்றுங்கள்.' },
+  },
+  wave_height_m: {
+    'Calm': { en: 'Easy water for wading and for children, with an adult in reach.', hi: 'पानी शांत है — बच्चों के लिए भी ठीक, बशर्ते कोई बड़ा पास हो।', bn: 'জল শান্ত — শিশুদের জন্যও ঠিক, কাছে কোনও বড় কেউ থাকলে।', ta: 'நீர் அமைதி — குழந்தைகளுக்கும் சரி, ஒரு பெரியவர் அருகில் இருந்தால்.' },
+    'Moderate swell': { en: 'Waves will knock a child over. Stay where you can stand.', hi: 'लहरें बच्चे को गिरा देंगी। उतने ही पानी में रहें जहाँ पैर टिकें।', bn: 'ঢেউ শিশুকে ফেলে দেবে। যেখানে দাঁড়াতে পারেন সেখানেই থাকুন।', ta: 'அலைகள் குழந்தையை வீழ்த்தும். கால் ஊன்றும் இடத்திலேயே இருங்கள்.' },
+    'High swell': { en: 'Stay out of the water. Watch from the sand.', hi: 'पानी में न जाएँ। किनारे से देखें।', bn: 'জলে নামবেন না। বালি থেকে দেখুন।', ta: 'நீரில் இறங்க வேண்டாம். மணலிலிருந்து பாருங்கள்.' },
+  },
+  sea_temp_c: {
+    'Cool': { en: 'Short dips only — you lose heat faster than you make it.', hi: 'थोड़ी देर ही डुबकी लें — शरीर गर्मी बनाने से तेज़ी से खोता है।', bn: 'অল্প সময়ই নামুন — শরীর তাপ তৈরির চেয়ে দ্রুত হারায়।', ta: 'குறுகிய நேரமே இறங்குங்கள் — உடல் வெப்பத்தை உற்பத்தி செய்வதைவிட வேகமாக இழக்கும்.' },
+    'Comfortable': { en: 'Comfortable for a long swim.', hi: 'देर तक तैरने के लिए आरामदेह।', bn: 'অনেকক্ষণ সাঁতারের জন্য আরামদায়ক।', ta: 'நீண்ட நேரம் நீந்த வசதியானது.' },
+    'Warm': { en: 'Warm enough that you will not feel dehydration coming. Drink anyway.', hi: 'इतना गर्म कि पानी की कमी महसूस नहीं होगी। फिर भी पानी पीते रहें।', bn: 'এত গরম যে জলশূন্যতা টের পাবেন না। তাও জল খেতে থাকুন।', ta: 'நீரிழப்பு தெரியாத அளவு வெதுவெதுப்பு. இருந்தாலும் நீர் அருந்துங்கள்.' },
+  },
+  safety_flag: {
+    'Safe to swim': { en: 'Still swim between the flags — this app is not the lifeguard.', hi: 'फिर भी झंडों के बीच ही तैरें — यह ऐप जीवनरक्षक नहीं है।', bn: 'তবুও পতাকার মাঝেই সাঁতার কাটুন — এই অ্যাপ লাইফগার্ড নয়।', ta: 'இருப்பினும் கொடிகளுக்கு நடுவேயே நீந்துங்கள் — இந்த ஆப் உயிர்காப்பாளர் அல்ல.' },
+    'Swim near lifeguard': { en: 'Stay within sight of the tower and keep children at arm\'s length.', hi: 'टावर की नज़र में रहें और बच्चों को हाथ भर की दूरी पर रखें।', bn: 'টাওয়ারের নজরের মধ্যে থাকুন, শিশুদের হাতের নাগালে রাখুন।', ta: 'கோபுரத்தின் பார்வைக்குள் இருங்கள், குழந்தைகளைக் கைக்கு எட்டும் தூரத்தில் வையுங்கள்.' },
+    'No swimming': { en: 'Do not enter the water, however calm it looks from the sand.', hi: 'पानी में न उतरें, चाहे किनारे से कितना भी शांत दिखे।', bn: 'জলে নামবেন না, বালি থেকে যতই শান্ত দেখাক।', ta: 'மணலிலிருந்து எவ்வளவு அமைதியாகத் தெரிந்தாலும் நீரில் இறங்க வேண்டாம்.' },
+  },
+  rip_current: {
+    'Low': { en: 'Still swim where others are — rips form in the quiet-looking gaps.', hi: 'फिर भी वहीं तैरें जहाँ और लोग हों — बहाव शांत दिखने वाली जगहों में बनता है।', bn: 'তবুও যেখানে অন্যরা আছে সেখানেই নামুন — টান শান্ত দেখানো ফাঁকেই তৈরি হয়।', ta: 'மற்றவர்கள் இருக்கும் இடத்திலேயே நீந்துங்கள் — அமைதியாகத் தெரியும் இடைவெளியிலேயே இழுப்பு உருவாகும்.' },
+    'Moderate': { en: 'Keep your feet on the sand. If pulled out, swim along the beach, not against it.', hi: 'पैर ज़मीन पर रखें। बहाव में फँसें तो किनारे के समानांतर तैरें, उसके ख़िलाफ़ नहीं।', bn: 'পা মাটিতে রাখুন। টানে পড়লে সৈকতের সমান্তরালে সাঁতরান, বিপরীতে নয়।', ta: 'கால்களை மணலில் வையுங்கள். இழுக்கப்பட்டால் கரைக்கு இணையாக நீந்துங்கள், எதிராக அல்ல.' },
+    'High': { en: 'Do not swim. A rip outruns an Olympic swimmer.', hi: 'न तैरें। बहाव ओलंपिक तैराक से भी तेज़ होता है।', bn: 'সাঁতার কাটবেন না। টান অলিম্পিক সাঁতারুর চেয়েও দ্রুত।', ta: 'நீந்த வேண்டாம். இழுப்பு ஒலிம்பிக் நீச்சல்காரரையும் மிஞ்சும்.' },
+  },
+  dest_precip_prob: {
+    'Dry on landing': { en: 'No rain gear needed in the cabin bag.', hi: 'हैंड बैग में बारिश का सामान रखने की ज़रूरत नहीं।', bn: 'হাতব্যাগে বৃষ্টির জিনিস রাখার দরকার নেই।', ta: 'கைப்பையில் மழைக்கான பொருள் தேவையில்லை.' },
+    'Showers possible': { en: 'Keep a foldable umbrella where you can reach it, not in checked baggage.', hi: 'छोटा छाता पहुँच में रखें, चेक-इन बैग में नहीं।', bn: 'ছোট ছাতা হাতের কাছে রাখুন, চেক-ইন ব্যাগে নয়।', ta: 'மடிக்கும் குடையை கைக்கு எட்டும் இடத்தில் வையுங்கள், செக்-இன் பையில் அல்ல.' },
+    'Showers on landing': { en: 'Plan for a wet arrival — and for taxi queues to be long.', hi: 'भीगते हुए पहुँचने की तैयारी रखें — और टैक्सी की लंबी कतार की भी।', bn: 'ভিজে পৌঁছানোর প্রস্তুতি রাখুন — আর ট্যাক্সির লম্বা লাইনেরও।', ta: 'நனைந்து சேரத் தயாராக இருங்கள் — வாடகை வண்டி வரிசையும் நீளமாக இருக்கும்.' },
+  },
+  precip_prob_1500: {
+    'Unlikely': { en: 'Outdoor plans after school should hold.', hi: 'स्कूल के बाद बाहर का कार्यक्रम टिक जाएगा।', bn: 'স্কুলের পরে বাইরের পরিকল্পনা টিকে যাবে।', ta: 'பள்ளிக்குப் பின் வெளியில் திட்டமிட்டது நடக்கும்.' },
+    'Possible': { en: 'Send a raincoat in the bag — showers at this hour clear as fast as they arrive.', hi: 'बैग में रेनकोट भेज दें — इस समय की बौछारें जितनी जल्दी आती हैं उतनी जल्दी जाती हैं।', bn: 'ব্যাগে রেনকোট দিয়ে দিন — এই সময়ের বৃষ্টি যত দ্রুত আসে তত দ্রুত যায়।', ta: 'பையில் மழைக்கோட்டு அனுப்புங்கள் — இந்நேர மழை வந்தவேகத்திலேயே விலகும்.' },
+    'Pack-up time showers': { en: 'Expect a wet pick-up. Move outdoor plans to the morning.', hi: 'लेने जाते समय भीगने की उम्मीद रखें। बाहर का कार्यक्रम सुबह कर लें।', bn: 'নিতে যাওয়ার সময় ভেজার আশঙ্কা। বাইরের পরিকল্পনা সকালে সরান।', ta: 'அழைத்து வரும்போது நனைய நேரிடும். வெளிப்புறத் திட்டங்களைக் காலைக்கு மாற்றுங்கள்.' },
+  },
+  soil_moisture_pct: {
+    'Below optimum': { en: 'Irrigate. The crop is spending energy pulling water instead of growing.', hi: 'सिंचाई कीजिए। फ़सल बढ़ने के बजाय पानी खींचने में ताक़त लगा रही है।', bn: 'সেচ দিন। ফসল বাড়ার বদলে জল টানতেই শক্তি খরচ করছে।', ta: 'பாசனம் செய்யுங்கள். பயிர் வளர்வதற்குப் பதிலாக நீரை இழுப்பதிலேயே சக்தியைச் செலவிடுகிறது.' },
+    'Optimum': { en: 'No irrigation needed today. Check again after any rain.', hi: 'आज सिंचाई की ज़रूरत नहीं। बारिश के बाद दोबारा देख लें।', bn: 'আজ সেচের দরকার নেই। বৃষ্টির পরে আবার দেখুন।', ta: 'இன்று பாசனம் தேவையில்லை. மழைக்குப் பின் மீண்டும் பாருங்கள்.' },
+    'Waterlogged': { en: 'Do not irrigate. Open the drains — roots suffocate in standing water.', hi: 'सिंचाई न करें। नालियाँ खोलें — खड़े पानी में जड़ें दम तोड़ देती हैं।', bn: 'সেচ দেবেন না। নালা খুলুন — জমা জলে শিকড় দম বন্ধ হয়ে যায়।', ta: 'பாசனம் செய்ய வேண்டாம். வடிகால்களைத் திறங்கள் — தேங்கிய நீரில் வேர்கள் மூச்சுத் திணறும்.' },
+  },
+  rain_48h_mm: {
+    'Light': { en: 'This will not water the field for you — irrigate as planned.', hi: 'इतनी बारिश खेत की सिंचाई नहीं करेगी — योजना के मुताबिक पानी दे दीजिए।', bn: 'এই বৃষ্টিতে জমিতে জল হবে না — পরিকল্পনামতো সেচ দিন।', ta: 'இந்த மழை வயலுக்கு நீர் தராது — திட்டப்படி பாசனம் செய்யுங்கள்.' },
+    'Moderate': { en: 'Hold the irrigation a day and see what the rain leaves behind.', hi: 'सिंचाई एक दिन रोक लीजिए और देखिए बारिश कितना पानी छोड़ती है।', bn: 'সেচ একদিন থামান, দেখুন বৃষ্টি কতটা জল রেখে যায়।', ta: 'பாசனத்தை ஒரு நாள் நிறுத்தி, மழை எவ்வளவு விட்டுச் செல்கிறது என்று பாருங்கள்.' },
+    'Heavy': { en: 'Do not water the field. Clear the drains and hold off spraying and fertiliser.', hi: 'खेत में पानी मत दीजिए। नालियाँ साफ़ कीजिए और छिड़काव व खाद रोक दीजिए।', bn: 'জমিতে জল দেবেন না। নালা পরিষ্কার করুন, স্প্রে ও সার থামান।', ta: 'வயலுக்கு நீர் பாய்ச்ச வேண்டாம். வடிகால்களைச் சுத்தம் செய்து, தெளிப்பையும் உரத்தையும் நிறுத்துங்கள்.' },
+  },
+  min_temp_c: {
+    'Frost likely': { en: 'Irrigate tonight — wet soil holds heat — or cover young plants.', hi: 'आज रात सिंचाई कर दीजिए — गीली मिट्टी गर्मी रोकती है — या छोटे पौधे ढक दीजिए।', bn: 'আজ রাতে সেচ দিন — ভেজা মাটি তাপ ধরে রাখে — বা কচি গাছ ঢেকে দিন।', ta: 'இன்றிரவு பாசனம் செய்யுங்கள் — ஈர மண் வெப்பத்தைத் தக்கவைக்கும் — அல்லது இளம் செடிகளை மூடுங்கள்.' },
+    'Watch': { en: 'Close to frost on a still, clear night. Check the low-lying plots first.', hi: 'शांत और साफ़ रात में पाला पड़ने के क़रीब। पहले नीचे वाले खेत देखिए।', bn: 'শান্ত পরিষ্কার রাতে তুষারের কাছাকাছি। আগে নিচু জমিগুলি দেখুন।', ta: 'அமைதியான தெளிவான இரவில் உறைபனிக்கு அருகில். தாழ்வான நிலங்களை முதலில் பாருங்கள்.' },
+    'Nil': { en: 'No frost protection needed tonight.', hi: 'आज रात पाले से बचाव की ज़रूरत नहीं।', bn: 'আজ রাতে তুষার থেকে রক্ষার দরকার নেই।', ta: 'இன்றிரவு உறைபனிப் பாதுகாப்பு தேவையில்லை.' },
+  },
+  gusts_kmh: {
+    'Spray safe': { en: 'Spray now — the chemical lands where you aim it.', hi: 'अभी छिड़काव कीजिए — दवा वहीं गिरेगी जहाँ डाल रहे हैं।', bn: 'এখনই স্প্রে করুন — ওষুধ যেখানে দিচ্ছেন সেখানেই পড়বে।', ta: 'இப்போது தெளியுங்கள் — மருந்து நீங்கள் நோக்கும் இடத்திலேயே விழும்.' },
+    'Marginal': { en: 'Spray early morning instead, when the wind drops.', hi: 'छिड़काव सुबह जल्दी कीजिए, जब हवा थम जाती है।', bn: 'স্প্রে ভোরে করুন, যখন বাতাস কমে।', ta: 'காற்று அடங்கும் அதிகாலையில் தெளியுங்கள்.' },
+    'Delay spraying': { en: 'Do not spray. It drifts onto the next field and wastes the dose.', hi: 'छिड़काव मत कीजिए। दवा बग़ल के खेत में उड़ जाएगी और बेकार जाएगी।', bn: 'স্প্রে করবেন না। ওষুধ পাশের জমিতে উড়ে যাবে, নষ্ট হবে।', ta: 'தெளிக்க வேண்டாம். மருந்து அடுத்த வயலுக்குப் பறந்து வீணாகும்.' },
+  },
+  visibility_km: {
+    'Dense fog': { en: 'Low beams, not high — high beams reflect back off the fog. Consider not driving.', hi: 'लो बीम रखें, हाई नहीं — हाई बीम कोहरे से टकराकर वापस आती है। हो सके तो न निकलें।', bn: 'লো বিম রাখুন, হাই নয় — হাই বিম কুয়াশা থেকে ফিরে আসে। পারলে বেরোবেন না।', ta: 'குறைந்த ஒளிக்கற்றை வையுங்கள், அதிகம் அல்ல — அது மூடுபனியில் தெறித்துத் திரும்பும். முடிந்தால் வெளியே செல்ல வேண்டாம்.' },
+    'Haze': { en: 'Double the gap to the vehicle ahead and keep the fog lamps on.', hi: 'आगे वाली गाड़ी से दूरी दोगुनी रखें और फ़ॉग लैंप जलाए रखें।', bn: 'সামনের গাড়ির থেকে দূরত্ব দ্বিগুণ রাখুন, ফগ ল্যাম্প জ্বালিয়ে রাখুন।', ta: 'முன்னால் உள்ள வாகனத்திலிருந்து இடைவெளியை இரட்டிப்பாக்கி, மூடுபனி விளக்கை எரியவிடுங்கள்.' },
+    'Clear': { en: 'Normal driving distances apply.', hi: 'सामान्य दूरी बनाए रखें।', bn: 'স্বাভাবিক দূরত্বই যথেষ্ট।', ta: 'வழக்கமான தூரமே போதும்.' },
+  },
+};
+
 const pick = (row) => (row ? row[getLocale()] || row.en : '');
 
 export function hasExplainer(field) {
@@ -470,6 +583,7 @@ function scaleRows(field, personaDef, tl) {
   const shown = [tl?.statusLabel, tl?.value].filter(Boolean).map(String);
   return `
     <div class="explain-label">${t('explain.scale')}</div>
+    <div class="explain-scale-hint">${t('explain.scale_hint')}</div>
     <div class="explain-scale">
       ${thresholds.map(([lo, hi, tone, label]) => {
         const name = t('status.' + label);
@@ -479,12 +593,16 @@ function scaleRows(field, personaDef, tl) {
           : lo === hi ? `${lo}`
           : `${lo}–${hi}`;
         const mine = shown.includes(name);
+        const todo = pick(ADVICE[field]?.[label]);
         return `
           <div class="explain-band${mine ? ' mine' : ''}">
-            <span class="explain-band-dot" style="background:${TONE_COLOR[tone]}"></span>
-            <span class="explain-band-range">${range}</span>
-            <span class="explain-band-label">${name}</span>
-            ${mine ? `<span class="explain-band-you">${t('explain.reading')}</span>` : ''}
+            <div class="explain-band-head">
+              <span class="explain-band-dot" style="background:${TONE_COLOR[tone]}"></span>
+              <span class="explain-band-range">${range}</span>
+              <span class="explain-band-label">${name}</span>
+              ${mine ? `<span class="explain-band-you">${t('explain.reading')}</span>` : ''}
+            </div>
+            ${todo ? `<div class="explain-band-do">${todo}</div>` : ''}
           </div>`;
       }).join('')}
     </div>`;

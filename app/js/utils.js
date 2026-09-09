@@ -37,6 +37,20 @@ export function todaySeed(city) {
 
 const LS_KEY = 'mausam.state.v1';
 
+// Open-Meteo is asked for timezone=auto, so every time string it returns is
+// the *city's* wall clock with no offset on it: "2026-09-09T12:00". That is
+// exactly what you want to print — 3 PM in Delhi should read as 3 PM — but
+// `new Date("2026-09-09T12:00")` parses a bare date-time as the *device's*
+// local time, so comparing one against Date.now() silently reads the label
+// in the wrong timezone. Viewing London from an Indian phone picked the
+// hourly row four hours ahead: UV 2.6 instead of 0.2, humidity 58 instead
+// of 75. Anywhere a label is compared against real time, it has to come
+// through here first.
+export function apiInstant(localIso, offsetSec = 0) {
+  const ms = Date.parse(`${localIso}Z`);      // read the label as if it were UTC…
+  return Number.isFinite(ms) ? ms - offsetSec * 1000 : NaN;  // …then undo the city's offset
+}
+
 export function loadState() {
   try {
     return JSON.parse(localStorage.getItem(LS_KEY)) || {};

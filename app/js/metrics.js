@@ -1,5 +1,6 @@
 import { weatherCodeToCondition } from './weatherApi.js';
 import { mockedForCity } from './mock.js';
+import { apiInstant } from './utils.js';
 
 // CPCB PM2.5 (24h, µg/m³) -> Indian National AQI sub-index, piecewise linear.
 function pm25ToAQI(pm) {
@@ -21,11 +22,11 @@ function pm25ToAQI(pm) {
   return pm > 500 ? 500 : 0;
 }
 
-function nowIndex(times) {
+function nowIndex(times, offsetSec) {
   const now = Date.now();
   let idx = 0;
   for (let i = 0; i < times.length; i++) {
-    if (new Date(times[i]).getTime() <= now) idx = i;
+    if (apiInstant(times[i], offsetSec) <= now) idx = i;
     else break;
   }
   return idx;
@@ -37,7 +38,10 @@ export function buildMetrics({ forecast, air }, city) {
   const daily = forecast.daily || {};
   const airHourly = air?.hourly || {};
 
-  const hIdx = nowIndex(hourly.time || []);
+  // The city's offset from UTC. Every comparison against real time below
+  // has to go through it — the response's own labels carry none.
+  const tzOffsetSec = forecast.utc_offset_seconds ?? 0;
+  const hIdx = nowIndex(hourly.time || [], tzOffsetSec);
   const window24 = (arr) => (arr || []).slice(hIdx, hIdx + 24);
 
   const condition = weatherCodeToCondition(cur.weather_code ?? daily.weather_code?.[0] ?? 0);
@@ -85,6 +89,11 @@ export function buildMetrics({ forecast, air }, city) {
     min_temp_c: Math.round(minTempNext),
     sunrise: daily.sunrise?.[0],
     sunset: daily.sunset?.[0],
+    // Resolved to real instants once, here, so the theme does not re-derive
+    // them and cannot get the timezone wrong on its own.
+    sunriseMs: daily.sunrise?.[0] ? apiInstant(daily.sunrise[0], tzOffsetSec) : NaN,
+    sunsetMs: daily.sunset?.[0] ? apiInstant(daily.sunset[0], tzOffsetSec) : NaN,
+    tzOffsetSec,
     hIdx,
     hourly,
     daily,

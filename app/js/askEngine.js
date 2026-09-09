@@ -386,7 +386,13 @@ export function bestWindow(metrics, activity) {
       }
     });
     if (best && best.len >= 2) {
-      return { fromIso: hours[best.from].iso, toIso: hours[best.to].iso, hours: best.len, strict };
+      return {
+        fromIso: hours[best.from].iso, toIso: hours[best.to].iso, hours: best.len, strict,
+        // The city's own calendar date, so "today" in the label means today
+        // *there*. Comparing the label against the device's date said the
+        // wrong day for any city an hour or two the other side of midnight.
+        today: (metrics.hourly.time?.[metrics.hIdx] || '').slice(0, 10),
+      };
     }
   }
   return null;
@@ -468,8 +474,9 @@ function fmtHour(iso) {
 
 export function windowLabel(win) {
   if (!win) return '';
-  const from = new Date(win.fromIso);
-  const isToday = from.toDateString() === new Date().toDateString();
+  // Both sides are the API's own labels, so this is a plain string compare
+  // and no timezone gets involved at all.
+  const isToday = !win.today || win.fromIso.slice(0, 10) === win.today;
   const day = isToday ? t('ask.win.today') : t('ask.win.tomorrow');
   return t('ask.win.range', { day, from: fmtHour(win.fromIso), to: fmtHour(win.toIso) });
 }

@@ -51,6 +51,15 @@ function near(name, got, want, tol, unit = '') {
 
 const MIN = 60000, HOUR = 3600000, DAY = 86400000;
 
+// This page shares an origin with the app, so whatever language you last
+// used it in is still in localStorage. Pin it, or assertions that name an
+// English word pass or fail depending on what you were doing beforehand.
+const i18nPin = await import('./js/i18n.js');
+await import('./js/i18nStrings.js');
+const localeAtStart = i18nPin.getLocale();
+i18nPin.setLocale('en');
+addEventListener('beforeunload', () => i18nPin.setLocale(localeAtStart));
+
 // ---------------------------------------------------------------- dusk ----
 const { t: i18nT } = await import('./js/i18n.js');
 await import('./js/i18nStrings.js');
@@ -59,7 +68,13 @@ group('dusk.js — how dark, and when');
 {
   // A real Delhi day: sunrise 06:03, sunset 18:30 local.
   const day = (h, m = 0) => new Date(2026, 8, 9, h, m).getTime();
-  const metrics = { sunrise: '2026-09-09T06:03', sunset: '2026-09-09T18:30' };
+  // metrics.js resolves the API's offset-less labels to real instants before
+  // duskLevel ever sees them, so the fixture supplies what it actually reads.
+  const metrics = {
+    sunrise: '2026-09-09T06:03', sunset: '2026-09-09T18:30',
+    sunriseMs: new Date(2026, 8, 9, 6, 3).getTime(),
+    sunsetMs: new Date(2026, 8, 9, 18, 30).getTime(),
+  };
   const at = (h, m) => dusk.duskLevel(metrics, day(h, m));
 
   is('midnight is fully dark', at(0), 1);
@@ -89,14 +104,17 @@ group('dusk.js — how dark, and when');
   // Missing or malformed sun times must not produce NaN — that would write
   // "--dusk: NaN" and the whole palette would fall back to its initial value.
   for (const m of [null, undefined, {}, { sunrise: null, sunset: null },
-    { sunrise: 'nonsense', sunset: 'nonsense' }, { sunrise: '2026-09-09T06:03' }]) {
+    { sunriseMs: NaN, sunsetMs: NaN }, { sunriseMs: Date.now() }]) {
     const v = dusk.duskLevel(m, day(19));
     if (!Number.isFinite(v) || v < 0 || v > 1) { bad('fallback for ' + JSON.stringify(m), `got ${v}`); break; }
   }
   ok('missing / malformed sun times fall back to the clock, never NaN');
 
   // A far-north summer, where the sun sets at 23:00 and rises at 03:00.
-  const arctic = { sunrise: '2026-06-21T02:50', sunset: '2026-06-21T23:10' };
+  const arctic = {
+    sunriseMs: new Date(2026, 5, 21, 2, 50).getTime(),
+    sunsetMs: new Date(2026, 5, 21, 23, 10).getTime(),
+  };
   const shortNight = Array.from({ length: 24 * 4 }, (_, i) =>
     dusk.duskLevel(arctic, new Date(2026, 5, 21, 0, i * 15).getTime()));
   truthy('a 4-hour summer night stays in range', shortNight.every((v) => v >= 0 && v <= 1));
@@ -104,6 +122,75 @@ group('dusk.js — how dark, and when');
 
   is('clamp01 floors', dusk.clamp01(-3), 0);
   is('clamp01 ceilings', dusk.clamp01(9), 1);
+}
+
+// ------------------------------------------------------------ timezones ----
+// The bug this exists for: Open-Meteo is asked for timezone=auto, so its
+// time labels are the city's wall clock with no offset on them. `new Date`
+// reads a bare date-time as the *device's* local time, so every comparison
+// against Date.now() was reading the label in the wrong timezone. Viewing
+// London from an Indian phone picked the hourly row four hours ahead —
+// UV 2.6 instead of 0.2, humidity 58 instead of 75.
+const metricsMod = await import('./js/metrics.js');
+group('timezones — a city you are not standing in');
+{
+  const utilsM = await import('./js/utils.js');
+  const IST = 5.5 * 3600, LON = 3600, NYC = -4 * 3600;
+
+  is('a label with no offset resolves through the city offset',
+    utilsM.apiInstant('2026-09-09T12:00', IST), Date.parse('2026-09-09T06:30Z'));
+  is('a zero offset is a plain UTC read',
+    utilsM.apiInstant('2026-09-09T12:00', 0), Date.parse('2026-09-09T12:00Z'));
+  is('a negative offset works too',
+    utilsM.apiInstant('2026-09-09T08:00', NYC), Date.parse('2026-09-09T12:00Z'));
+  truthy('rubbish in gives NaN, not a wrong answer', Number.isNaN(utilsM.apiInstant('nonsense', IST)));
+
+  // Build a synthetic day for a city four and a half hours behind, and check
+  // the app lands on the row that is actually happening there.
+  const now = Date.now();
+  const mk = (offsetSec) => {
+    const times = [], temps = [], uv = [];
+    // 48 hourly labels straddling "now" in that city's own clock.
+    const startLocal = Math.floor((now + offsetSec * 1000) / 3600000) * 3600000 - 12 * 3600000;
+    for (let i = 0; i < 48; i++) {
+      const d = new Date(startLocal + i * 3600000);
+      times.push(d.toISOString().slice(0, 16));   // "YYYY-MM-DDTHH:MM", no offset — as the API sends it
+      temps.push(i);
+      uv.push(i);
+    }
+    return {
+      forecast: {
+        utc_offset_seconds: offsetSec,
+        current: { temperature_2m: 20, relative_humidity_2m: 50, apparent_temperature: 22, weather_code: 0, wind_speed_10m: 5, wind_gusts_10m: 8, precipitation: 0 },
+        hourly: { time: times, temperature_2m: temps, uv_index: uv, visibility: times.map(() => 10000), relative_humidity_2m: times.map(() => 60), precipitation_probability: times.map(() => 0), wind_gusts_10m: times.map(() => 5), soil_moisture_0_to_1cm: times.map(() => 0.3), apparent_temperature: temps, weather_code: times.map(() => 0) },
+        daily: { time: [times[0].slice(0, 10)], weather_code: [0], temperature_2m_max: [30], temperature_2m_min: [20], apparent_temperature_max: [32], precipitation_probability_max: [0], precipitation_sum: [0, 0], uv_index_max: [8], wind_gusts_10m_max: [20], sunrise: [times[0].slice(0, 11) + '06:00'], sunset: [times[0].slice(0, 11) + '18:00'] },
+      },
+      air: null,
+    };
+  };
+
+  for (const [name, off] of [['Delhi', IST], ['London', LON], ['New York', NYC], ['UTC', 0]]) {
+    const m = metricsMod.buildMetrics(mk(off), 'Test');
+    const picked = m.hourly.time[m.hIdx];
+    // The row it picked must be the hour that is genuinely current there:
+    // its instant is in the past, and the next one is not.
+    const thisOne = utilsM.apiInstant(picked, off);
+    const nextOne = utilsM.apiInstant(m.hourly.time[m.hIdx + 1], off);
+    const right = thisOne <= Date.now() && nextOne > Date.now();
+    right ? ok(`${name} (offset ${off / 3600}h): lands on the hour actually happening there`)
+      : bad(`${name}: picked the wrong hour`,
+        `picked ${picked}, which is ${((Date.now() - thisOne) / 3600000).toFixed(1)}h ago`);
+    is(`${name}: the offset survives into metrics`, m.tzOffsetSec, off);
+    truthy(`${name}: sunrise and sunset resolve to real instants`,
+      Number.isFinite(m.sunriseMs) && Number.isFinite(m.sunsetMs));
+  }
+
+  // And the theme has to follow the city's sunset, not the device's.
+  const m = metricsMod.buildMetrics(mk(NYC), 'Test');
+  const noonThere = m.sunriseMs + 6 * 3600000;
+  const midnightThere = m.sunsetMs + 6 * 3600000;
+  is('midday in a far-off city reads as daylight', dusk.duskLevel(m, noonThere), 0);
+  is('the small hours there read as night', dusk.duskLevel(m, midnightThere), 1);
 }
 
 // ---------------------------------------------------------------- moon ----
@@ -191,10 +278,12 @@ group('moon.js — phase and dates');
   truthy('date labels carry both a date and a relative phrase',
     /\d/.test(moon.moonDateLabel(Date.now() + 3 * DAY))
     && moon.moonDateLabel(Date.now() + 3 * DAY).includes('·'));
+  // Against the translated string rather than an English literal, so the
+  // check means the same thing whatever language the suite runs in.
   truthy('a date later today reads as tonight',
-    moon.moonDateLabel(Date.now() + HOUR).includes('tonight'));
+    moon.moonDateLabel(Date.now() + HOUR).includes(i18nPin.t('moon.tonight')));
   truthy('tomorrow reads as tomorrow',
-    moon.moonDateLabel(Date.now() + DAY).includes('tomorrow'));
+    moon.moonDateLabel(Date.now() + DAY).includes(i18nPin.t('moon.tomorrow')));
 }
 
 // ----------------------------------------------------------------- sky ----

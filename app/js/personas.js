@@ -1,4 +1,5 @@
 import { classify, TONE_COLOR } from './severity.js';
+import { apiInstant } from './utils.js';
 import { t } from './i18n.js';
 
 const AIRPORT_CODES = {
@@ -42,11 +43,13 @@ function findThresholds(personaDef, field) {
 
 function findHourAt(metrics, targetHour) {
   const times = metrics.hourly.time || [];
-  const now = new Date();
+  const now = Date.now();
   let best = -1;
   for (let i = metrics.hIdx; i < times.length; i++) {
-    const d = new Date(times[i]);
-    if (d.getHours() === targetHour && d >= now) { best = i; break; }
+    // The hour is read off the label (which is already the city's clock);
+    // "is it still ahead of us" is the part that needs the real instant.
+    if (+times[i].slice(11, 13) === targetHour
+      && apiInstant(times[i], metrics.tzOffsetSec) >= now) { best = i; break; }
   }
   return best === -1 ? metrics.hIdx : best;
 }

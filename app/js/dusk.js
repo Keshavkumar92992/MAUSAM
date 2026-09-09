@@ -26,8 +26,12 @@ const MIN = 60000;
 export const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
 
 export function duskLevel(m, now = Date.now()) {
-  let rise = m?.sunrise ? Date.parse(m.sunrise) : NaN;
-  let set = m?.sunset ? Date.parse(m.sunset) : NaN;
+  // metrics.js has already turned the API's offset-less labels into real
+  // instants using the city's own UTC offset. Re-parsing the strings here
+  // would read them in the device's timezone instead, and flip the theme at
+  // the wrong hour for any city you are not standing in.
+  let rise = Number.isFinite(m?.sunriseMs) ? m.sunriseMs : NaN;
+  let set = Number.isFinite(m?.sunsetMs) ? m.sunsetMs : NaN;
   if (!Number.isFinite(rise) || !Number.isFinite(set)) {
     // Before the first fetch, and for feeds that omit them: the Indian mean
     // is close enough that the first paint is never visibly wrong, and the

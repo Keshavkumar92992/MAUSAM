@@ -35,16 +35,28 @@
   document.head.appendChild(l);
   document.documentElement.lang = loc;
 
-  /* Theme before first paint, so no page flashes light and then goes dark.
-     'auto' uses a plain clock guess here; home.js refines it against the
-     location's real sunrise/sunset once the forecast has loaded. */
-  var mode = 'auto';
-  try { mode = (JSON.parse(localStorage.getItem('mausam.state.v1')) || {}).theme || 'auto'; } catch (e) {}
-  var h = new Date().getHours();
-  var dark = mode === 'dark' || (mode === 'auto' && (h < 6 || h >= 19));
-  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  /* Dusk before the first paint, so nothing flashes bright and then dims.
+     This is a clock-only estimate — 17:45 to 21:00 going down, 04:15 to
+     07:15 coming back up — and home.js recomputes it against the location's
+     real sunrise and sunset the moment the forecast lands. */
+  var mins = new Date().getHours() * 60 + new Date().getMinutes();
+  var dusk = mins >= 1065 ? Math.min(1, (mins - 1065) / 195)
+           : mins <= 435 ? 1 - Math.max(0, (mins - 255) / 180)
+           : 0;
+  /* Sunset sits 45/195 of the way down the evening ramp; that is where the
+     palette changes sides, and --deep measures how far past it we are. */
+  var night = dusk >= 45 / 195 ? 1 : 0;
+  var deep = Math.min(1, Math.max(0, (dusk - 45 / 195) / (1 - 45 / 195)));
+  var el = document.documentElement;
+  el.style.setProperty('--dusk', dusk.toFixed(3));
+  el.style.setProperty('--night', String(night));
+  el.style.setProperty('--deep', deep.toFixed(3));
+  el.dataset.theme = night ? 'dark' : 'light';
   var mc = document.querySelector('meta[name="theme-color"]');
-  if (mc) mc.setAttribute('content', dark ? '#101825' : '#F5F4EF');
+  if (mc) {
+    var mix = function (f, t) { return Math.round(f + (t - f) * deep).toString(16).padStart(2, '0'); };
+    mc.setAttribute('content', night ? '#' + mix(0x22, 0x10) + mix(0x30, 0x18) + mix(0x47, 0x25) : '#F5F4EF');
+  }
 
   /* Sits behind the iOS status bar text. Added here rather than in each
      page's body so there is one copy of it. */

@@ -31,7 +31,7 @@ function shell(inner, alertCount = 0) {
       </div>
       <div class="section-body">${inner}</div>
       <div class="footer-note">${t('home.footer_dept')}<br>${t('home.footer_ministry')}</div>
-      ${renderBottomNav('alerts', alertCount, isDarkTheme())}
+      ${renderBottomNav('alerts', alertCount)}
     </div>
     <div class="home-indicator"></div>
   `;

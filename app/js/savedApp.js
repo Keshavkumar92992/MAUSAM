@@ -54,7 +54,7 @@ function render() {
         <div class="add-city-card" id="btn-add-city" style="margin-top:12px">${t('saved.add_city')}</div>
       </div>
       <div class="footer-note">${t('home.footer_dept')}<br>${t('home.footer_ministry')}</div>
-      ${renderBottomNav('saved', 0, isDarkTheme())}
+      ${renderBottomNav('saved', 0)}
     </div>
     <div class="home-indicator"></div>
     ${state.searchOpen ? renderSearch() : ''}

@@ -7,7 +7,7 @@ const statusWrap = document.getElementById('status-bar-wrap');
 if (statusWrap) statusWrap.innerHTML = renderStatusBar(true);
 
 const navWrap = document.getElementById('nav-wrap');
-if (navWrap) navWrap.innerHTML = renderBottomNav('radar', 0, true);
+if (navWrap) navWrap.innerHTML = renderBottomNav('radar', 0);
 
 // Static labels baked into radar.html — set from JS so they follow the
 // selected language instead of always showing English/hardcoded Hindi.

@@ -80,7 +80,6 @@ const state = {
   errorKind: null,
   fetchedAt: null,
   langOpen: false,
-  theme: 'auto',
   astroEvents: [],
   astroHistory: [],
   astroShown: null,
@@ -110,13 +109,13 @@ async function init() {
   const saved = loadState();
   state.city = saved.city || DEFAULT_CITY;
   state.activePersona = saved.activePersona || 'health';
-  if (THEMES.includes(saved.theme)) state.theme = saved.theme;
   document.documentElement.lang = getLocale();
 
   render();
   mountAsk(() => ({ metrics: state.metrics, city: state.city, persona: state.activePersona }));
   await loadWeather();
   startAutoRefresh();
+  startDuskClock();
   initAstro();
 }
 
@@ -352,56 +351,106 @@ function alertInfo(m) {
   return null;
 }
 
-// ---------- theme ----------
-// 'auto' follows the sun at the selected location; the other two pin it.
-const THEMES = ['auto', 'light', 'dark'];
+// ---------- light through the day ----------
+// There is no light/dark switch and no setting. The page carries a --dusk
+// level from 0 (full daylight) to 1 (full night), and the stylesheet builds
+// the palette from it: the two sides swap once, at sunset, and the night
+// side then keeps settling from a twilight slate down to midnight. The note
+// at the top of styles.css says why the swap has to be a step.
+//
+// The ramp is hung off the location's own sunrise and sunset — the forecast
+// already carries both — because a clock rule cannot know that a December
+// evening in Delhi is dark by 5:30 while June is still bright at 7. It is
+// deliberately long and lopsided: the light drains for a couple of hours
+// after the sun is down, and starts coming back well before it is up.
+const DUSK_BEFORE_SET = 45;    // minutes before sunset the dimming starts
+const DUSK_AFTER_SET = 150;    // minutes after sunset it is fully night
+const DAWN_BEFORE_RISE = 120;  // minutes before sunrise the light returns
+const DAWN_AFTER_RISE = 60;    // minutes after sunrise it is fully light
+const MIN = 60000;
 
-// Night is decided by the location's own sunrise/sunset, which the forecast
-// already carries — a fixed "after 7 PM" rule would still be bright in a
-// Delhi June and hours late in December. Before the first fetch, and if the
-// feed ever omits them, fall back to a plain clock check rather than
-// guessing wrong in the dark.
-function isNightNow() {
+const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
+
+function duskLevel() {
   const m = state.metrics;
   const now = Date.now();
-  const rise = m?.sunrise ? Date.parse(m.sunrise) : NaN;
-  const set = m?.sunset ? Date.parse(m.sunset) : NaN;
-  if (Number.isFinite(rise) && Number.isFinite(set)) return now < rise || now >= set;
-  const h = new Date().getHours();
-  return h < 6 || h >= 19;
+  let rise = m?.sunrise ? Date.parse(m.sunrise) : NaN;
+  let set = m?.sunset ? Date.parse(m.sunset) : NaN;
+  if (!Number.isFinite(rise) || !Number.isFinite(set)) {
+    // Before the first fetch, and for feeds that omit them: the Indian mean
+    // is close enough that the first paint is never visibly wrong, and the
+    // real times take over a moment later.
+    rise = new Date().setHours(6, 15, 0, 0);
+    set = new Date().setHours(18, 30, 0, 0);
+  }
+  const duskFrom = set - DUSK_BEFORE_SET * MIN;
+  if (now >= duskFrom) return clamp01((now - duskFrom) / ((DUSK_BEFORE_SET + DUSK_AFTER_SET) * MIN));
+  // Everything before that is either still night from yesterday evening or
+  // climbing back out of it. Both are the same ramp read backwards.
+  const dawnFrom = rise - DAWN_BEFORE_RISE * MIN;
+  if (now <= rise + DAWN_AFTER_RISE * MIN) {
+    return 1 - clamp01((now - dawnFrom) / ((DAWN_BEFORE_RISE + DAWN_AFTER_RISE) * MIN));
+  }
+  return 0;
 }
 
-function themeIsDark() {
-  if (state.theme === 'dark') return true;
-  if (state.theme === 'light') return false;
-  return isNightNow();
+// Sunset's place on the dial. The evening ramp starts DUSK_BEFORE_SET
+// minutes early, so this fraction of it is exactly the moment the sun goes
+// down — which is where the palette changes sides.
+const SUNSET_POINT = DUSK_BEFORE_SET / (DUSK_BEFORE_SET + DUSK_AFTER_SET);
+
+// Straight sRGB lerp — this only feeds the browser chrome colour, where a
+// perceptual blend would not be worth carrying a colour library for.
+function mixHex(from, to, k) {
+  const ch = (h, i) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16);
+  const out = [0, 1, 2].map((i) => Math.round(ch(from, i) + (ch(to, i) - ch(from, i)) * k));
+  return '#' + out.map((v) => v.toString(16).padStart(2, '0')).join('');
 }
 
+// Publishes the dial in the three forms the stylesheet wants: the raw
+// level, which side of sunset we are on, and how far past it. The palette
+// side is deliberately not a fraction — see the note at the top of the
+// stylesheet for why a half-faded palette has no readable text in it.
 function applyTheme() {
-  const dark = themeIsDark();
-  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  const dusk = duskLevel();
+  const night = dusk >= SUNSET_POINT;
+  const deep = clamp01((dusk - SUNSET_POINT) / (1 - SUNSET_POINT));
+  const el = document.documentElement;
+  el.style.setProperty('--dusk', dusk.toFixed(3));
+  el.style.setProperty('--night', night ? '1' : '0');
+  el.style.setProperty('--deep', deep.toFixed(3));
+  // A few things cannot be half-anything — the sun/moon glyph, the ink
+  // pinned onto amber alert cards — so they get a side to be on.
+  el.dataset.theme = night ? 'dark' : 'light';
   // Colours the phone's own status bar / URL chrome around the page.
-  document.querySelector('meta[name="theme-color"]')
-    ?.setAttribute('content', dark ? '#101825' : '#F5F4EF');
-  return dark;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute(
+    'content',
+    night ? mixHex('#223047', '#101825', deep) : '#F5F4EF'
+  );
+  return night;
 }
 
-function cycleTheme() {
-  state.theme = THEMES[(THEMES.indexOf(state.theme) + 1) % THEMES.length];
-  saveState({ theme: state.theme });
-  render();
+// The dial has to keep moving while the page just sits open through sunset.
+// Only the crossover needs a re-render — the depth and every token are
+// already live in CSS — so the minute tick is nearly free.
+let lastNight = null;
+function startDuskClock() {
+  setInterval(() => {
+    const night = applyTheme();
+    if (lastNight !== null && night !== lastNight) render();
+    lastNight = night;
+  }, 60000);
 }
 
-function skyGradientClass(dark) {
-  if (dark) {
+function skyGradient(night) {
+  const h = new Date().getHours();
+  if (night) {
     // Deep sky down into the page colour, so the gradient and the sheet
     // below it never show a seam.
-    const h = new Date().getHours();
     return h >= 4 && h < 6
       ? 'linear-gradient(180deg,#243550 0%,#1B2740 40%,#151E2E 78%,#101825 100%)'
       : 'linear-gradient(180deg,#16203A 0%,#141C30 42%,#121926 78%,#101825 100%)';
   }
-  const h = new Date().getHours();
   if (h >= 5 && h < 11) return 'linear-gradient(180deg,#B9D9F2 0%,#D7E7F2 42%,#EFEDE6 78%,#F5F4EF 100%)';
   if (h >= 11 && h < 17) return 'linear-gradient(180deg,#9EC9EC 0%,#CFE2EF 40%,#EEEDE5 78%,#F5F4EF 100%)';
   return 'linear-gradient(180deg,#F2C9A4 0%,#EFD9C6 38%,#F0EBE2 78%,#F5F4EF 100%)';
@@ -415,6 +464,7 @@ function render() {
   const tint = SCRIM_TINT[persona];
   const alert = state.metrics ? alertInfo(state.metrics) : null;
   const dark = applyTheme();
+  lastNight = dark;
 
   // root.innerHTML replaces the persona-chip row with a brand new element,
   // which resets its horizontal scroll to 0 — so scrolling right to reach
@@ -425,7 +475,8 @@ function render() {
   root.innerHTML = `
     ${renderStatusBar(dark)}
 
-    <div class="sky-gradient" style="background:${skyGradientClass(dark)}"></div>
+    <div class="sky-gradient" style="background:${skyGradient(false)}"></div>
+    <div class="sky-gradient night" style="background:${skyGradient(true)}"></div>
     <div class="texture-glow"></div>
     <div class="texture-grain"></div>
 
@@ -434,7 +485,8 @@ function render() {
         <img src="./assets/${persona}.jpg" alt="${t(PERSONA_LABEL_KEY[persona])}">
       </div>
     </div>
-    <div class="hero-scrim" style="background:${heroScrim(dark, tint)}"></div>
+    <div class="hero-scrim" style="background:${heroScrim(false, tint)}"></div>
+    <div class="hero-scrim night" style="background:${heroScrim(true, tint)}"></div>
     <div class="hero-accent-bar" style="background:linear-gradient(90deg,${personaDef.accent_bar[0]},${personaDef.accent_bar[1]} 55%,${personaDef.accent_bar[2]})"></div>
 
     <div class="content">
@@ -443,7 +495,7 @@ function render() {
       <div class="content-sheet">
         ${state.status === 'ready' ? renderBody(personaDef) : state.status === 'error' ? renderError() : renderSkeleton()}
         ${renderFooter()}
-        ${renderBottomNav('home', alert ? 1 : 0, dark)}
+        ${renderBottomNav('home', alert ? 1 : 0)}
       </div>
     </div>
     <div class="home-indicator"></div>
@@ -495,7 +547,6 @@ function renderHeader(alert) {
       <div class="wordmark-row">
         <div class="wordmark"><span class="en">Mausam</span><span class="hi">मौसम</span></div>
         <div class="header-icons">
-          <button class="icon-btn" id="btn-theme" title="${t('theme.' + state.theme)}" aria-label="${t('theme.' + state.theme)}">${ICONS.theme('', 'currentColor', state.theme)}</button>
           <button class="icon-btn lang-btn" id="btn-lang" title="Language">${getLocale().toUpperCase()}</button>
           <button class="icon-btn" id="btn-search" title="Search city" aria-label="Search city">${ICONS.search()}</button>
         </div>
@@ -742,7 +793,6 @@ function wireEvents() {
     if (e.target.id === 'search-overlay') closeSearch();
   });
   document.getElementById('btn-geo')?.addEventListener('click', useCurrentLocation);
-  document.getElementById('btn-theme')?.addEventListener('click', cycleTheme);
   document.getElementById('btn-lang')?.addEventListener('click', toggleLang);
   document.getElementById('lang-close')?.addEventListener('click', toggleLang);
   document.getElementById('lang-overlay')?.addEventListener('click', (e) => {

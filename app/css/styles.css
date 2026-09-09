@@ -13,58 +13,126 @@
 :lang(bn){font-family:'Noto Sans Bengali','Noto Sans',system-ui,sans-serif}
 :lang(ta){font-family:'Noto Sans Tamil','Noto Sans',system-ui,sans-serif}
 
-/* Two themes over one token set. The app flips to dark at the location's
-   real sunset rather than a fixed clock hour — a December evening in Delhi
-   is dark by 5:30 while June is still bright at 7, and a weather app of all
-   things should know the difference. home.js sets data-theme. */
+/* Colour through the evening.
+
+   The app has no light/dark switch and no setting. It carries a --dusk
+   level from 0 (full daylight) to 1 (full night), hung off the location's
+   own sunrise and sunset, and the palette below is built from it. A fixed
+   "after 7 PM" rule could not do this: a December evening in Delhi is dark
+   by 5:30 while June is still bright at 7.
+
+   Two dials come out of that one level, and the split is the whole point:
+
+   --night picks the palette, and it is 0 or 1 — never in between. Fading a
+   palette across its own inversion does not work: halfway between near-black
+   text and near-white text, over a background making the same journey, both
+   land on the same grey and the words are simply gone (1:1 contrast, and
+   under 3:1 for a good stretch either side of it). So the palette steps, at
+   the one honest moment for it — sunset — and a short transition carries it
+   over so the step reads as a dissolve rather than a flip.
+
+   --deep is where the gradual part actually lives. It runs 0 at sunset to 1
+   about two hours later, and the night surfaces ride it from a twilight
+   slate down to midnight. So the app is only lightly dark at 7 PM, settles
+   all the way down by 9, and comes back up through the same slate before
+   sunrise. The text stays white throughout, so nothing has to cross over
+   twice. */
+@property --night{syntax:'<number>';inherits:true;initial-value:0}
+@property --deep{syntax:'<number>';inherits:true;initial-value:0}
+
 :root{
-  --ink:#171A1C;
-  --ink-secondary:rgba(23,26,28,.66);
-  --ink-tertiary:rgba(23,26,28,.62);
-  --page:#F5F4EF;
-  --card:#fff;
-  --card-border:rgba(23,26,28,.07);
-  --backdrop:#E7E5DF;
-  --glass:rgba(245,244,239,.88);   /* nav + chip rail, over the hero photo */
-  --panel:#fff;                    /* search / language sheets */
-  --chip:rgba(255,255,255,.9);
-  --chip-ink:rgba(23,26,28,.72);
-  --chip-border:rgba(23,26,28,.10);
-  --chip-on-bg:#171A1C;
-  --chip-on-ink:#fff;
-  --icon-btn:rgba(255,255,255,.66);
-  --icon-btn-hover:rgba(255,255,255,.95);
-  --cloud:rgba(255,255,255,.86);
-  --ok:#2E7D5B;
-  --warn:#C9772A;
-  --bad:#C2452D;
-  --info:#2C6EA8;
+  --dusk:0;    /* the raw dial, 0..1 — published for inspection; the two
+                  below are what the palette is actually built from */
+  --night:0;   /* which palette: 0 daylight, 1 night */
+  --deep:0;    /* how far into the night: 0 twilight, 1 midnight */
+  --night-pct:calc(var(--night) * 100%);
+  --deep-pct:calc(var(--deep) * 100%);
+
+  /* Every ramp's ends, named once. d- daylight, t- twilight, n- midnight.
+     Only surfaces need a twilight value; ink is white from sunset on. */
+  --d-ink:#171A1C;                          --n-ink:#EEF3FB;
+  --d-ink-secondary:rgba(23,26,28,.66);     --n-ink-secondary:rgba(238,243,251,.72);
+  --d-ink-tertiary:rgba(23,26,28,.62);      --n-ink-tertiary:rgba(238,243,251,.58);
+  --d-card-border:rgba(23,26,28,.07);       --n-card-border:rgba(255,255,255,.09);
+  --d-chip:rgba(255,255,255,.9);            --n-chip:rgba(255,255,255,.10);
+  --d-chip-ink:rgba(23,26,28,.72);          --n-chip-ink:rgba(238,243,251,.78);
+  --d-chip-border:rgba(23,26,28,.10);       --n-chip-border:rgba(255,255,255,.14);
+  --d-chip-on-bg:#171A1C;                   --n-chip-on-bg:#EEF3FB;
+  --d-chip-on-ink:#fff;                     --n-chip-on-ink:#101825;
+  --d-icon-btn:rgba(255,255,255,.66);       --n-icon-btn:rgba(255,255,255,.12);
+  --d-icon-btn-hover:rgba(255,255,255,.95); --n-icon-btn-hover:rgba(255,255,255,.2);
+  --d-cloud:rgba(255,255,255,.86);          --n-cloud:rgba(226,235,247,.5);
+  /* The night greens and reds are lifted off their daylight values: the
+     same ones go muddy and fail contrast against a dark card. */
+  --d-ok:#2E7D5B;      --n-ok:#5FBF92;
+  --d-warn:#C9772A;    --n-warn:#E8A45C;
+  --d-bad:#C2452D;     --n-bad:#E8705C;
+  --d-info:#2C6EA8;    --n-info:#7FB2E5;
+
+  /* Surfaces: daylight, then twilight settling to midnight. */
+  --d-page:#F5F4EF;                --t-page:#223047;          --n-page:#101825;
+  --d-card:#fff;                   --t-card:#2C3B54;          --n-card:#1A2634;
+  --d-panel:#fff;                  --t-panel:#2C3B54;         --n-panel:#1A2634;
+  --d-backdrop:#E7E5DF;            --t-backdrop:#16203A;      --n-backdrop:#070C13;
+  --d-glass:rgba(245,244,239,.88); --t-glass:rgba(34,48,71,.9); --n-glass:rgba(16,24,37,.9);
+
+  --ink:color-mix(in oklab, var(--n-ink) var(--night-pct), var(--d-ink));
+  --ink-secondary:color-mix(in oklab, var(--n-ink-secondary) var(--night-pct), var(--d-ink-secondary));
+  --ink-tertiary:color-mix(in oklab, var(--n-ink-tertiary) var(--night-pct), var(--d-ink-tertiary));
+  --card-border:color-mix(in oklab, var(--n-card-border) var(--night-pct), var(--d-card-border));
+  --chip:color-mix(in oklab, var(--n-chip) var(--night-pct), var(--d-chip));
+  --chip-ink:color-mix(in oklab, var(--n-chip-ink) var(--night-pct), var(--d-chip-ink));
+  --chip-border:color-mix(in oklab, var(--n-chip-border) var(--night-pct), var(--d-chip-border));
+  --chip-on-bg:color-mix(in oklab, var(--n-chip-on-bg) var(--night-pct), var(--d-chip-on-bg));
+  --chip-on-ink:color-mix(in oklab, var(--n-chip-on-ink) var(--night-pct), var(--d-chip-on-ink));
+  --icon-btn:color-mix(in oklab, var(--n-icon-btn) var(--night-pct), var(--d-icon-btn));
+  --icon-btn-hover:color-mix(in oklab, var(--n-icon-btn-hover) var(--night-pct), var(--d-icon-btn-hover));
+  --cloud:color-mix(in oklab, var(--n-cloud) var(--night-pct), var(--d-cloud));
+  --ok:color-mix(in oklab, var(--n-ok) var(--night-pct), var(--d-ok));
+  --warn:color-mix(in oklab, var(--n-warn) var(--night-pct), var(--d-warn));
+  --bad:color-mix(in oklab, var(--n-bad) var(--night-pct), var(--d-bad));
+  --info:color-mix(in oklab, var(--n-info) var(--night-pct), var(--d-info));
+
+  /* Twilight settling to midnight first, then that against daylight. */
+  --page:color-mix(in oklab, color-mix(in oklab, var(--n-page) var(--deep-pct), var(--t-page)) var(--night-pct), var(--d-page));
+  --card:color-mix(in oklab, color-mix(in oklab, var(--n-card) var(--deep-pct), var(--t-card)) var(--night-pct), var(--d-card));
+  --panel:color-mix(in oklab, color-mix(in oklab, var(--n-panel) var(--deep-pct), var(--t-panel)) var(--night-pct), var(--d-panel));
+  --backdrop:color-mix(in oklab, color-mix(in oklab, var(--n-backdrop) var(--deep-pct), var(--t-backdrop)) var(--night-pct), var(--d-backdrop));
+  --glass:color-mix(in oklab, color-mix(in oklab, var(--n-glass) var(--deep-pct), var(--t-glass)) var(--night-pct), var(--d-glass));
 }
 
-[data-theme="dark"]{
-  --ink:#EEF3FB;
-  --ink-secondary:rgba(238,243,251,.72);
-  --ink-tertiary:rgba(238,243,251,.58);
-  --page:#101825;
-  --card:#1A2634;
-  --card-border:rgba(255,255,255,.09);
-  --backdrop:#070C13;
-  --glass:rgba(16,24,37,.9);
-  --panel:#1A2634;
-  --chip:rgba(255,255,255,.10);
-  --chip-ink:rgba(238,243,251,.78);
-  --chip-border:rgba(255,255,255,.14);
-  --chip-on-bg:#EEF3FB;
-  --chip-on-ink:#101825;
-  --icon-btn:rgba(255,255,255,.12);
-  --icon-btn-hover:rgba(255,255,255,.2);
-  --cloud:rgba(226,235,247,.5);
-  /* Lifted off the light-theme values: the same greens and reds go muddy
-     and fail contrast against a dark card. */
-  --ok:#5FBF92;
-  --warn:#E8A45C;
-  --bad:#E8705C;
-  --info:#7FB2E5;
+/* --night is what needs easing; --deep only ever moves a minute at a time,
+   but carrying it too keeps even that from reading as a redraw. */
+html{transition:--night .9s ease, --deep 1.2s linear}
+@media (prefers-reduced-motion:reduce){ html{transition:none} }
+
+/* Without color-mix there is no dissolve to be had, so fall back to the
+   plain two-step switch on the attribute that already marks the crossover,
+   and pin the night surfaces at midnight rather than twilight. */
+@supports not (color: color-mix(in oklab, #000 50%, #fff)){
+  [data-theme="dark"]{
+    --ink:var(--n-ink);
+    --ink-secondary:var(--n-ink-secondary);
+    --ink-tertiary:var(--n-ink-tertiary);
+    --card-border:var(--n-card-border);
+    --chip:var(--n-chip);
+    --chip-ink:var(--n-chip-ink);
+    --chip-border:var(--n-chip-border);
+    --chip-on-bg:var(--n-chip-on-bg);
+    --chip-on-ink:var(--n-chip-on-ink);
+    --icon-btn:var(--n-icon-btn);
+    --icon-btn-hover:var(--n-icon-btn-hover);
+    --cloud:var(--n-cloud);
+    --ok:var(--n-ok);
+    --warn:var(--n-warn);
+    --bad:var(--n-bad);
+    --info:var(--n-info);
+    --page:var(--n-page);
+    --card:var(--n-card);
+    --panel:var(--n-panel);
+    --backdrop:var(--n-backdrop);
+    --glass:var(--n-glass);
+  }
 }
 
 *{box-sizing:border-box}
@@ -140,6 +208,12 @@ input{font-family:inherit}
 }
 
 .sky-gradient{position:absolute;top:0;left:0;right:0;height:440px;pointer-events:none;z-index:0}
+/* The sky and the scrim over the photo are painted twice — the daylight
+   version, and the night version stacked on top at the dial's opacity. A
+   single layer whose colour stops were interpolated would have meant doing
+   the mixing by hand in JS for every stop; this fades the whole thing for
+   free and keeps both gradients readable as gradients. */
+.sky-gradient.night{opacity:var(--night);filter:brightness(calc(1.5 - .5 * var(--deep)))}
 
 .texture-glow{
   position:absolute;inset:0;pointer-events:none;z-index:0;
@@ -171,6 +245,7 @@ input{font-family:inherit}
   width:402px;max-width:100vw;pointer-events:none;z-index:1;transition:background .35s ease;
   height:100vh;height:100dvh;
 }
+.hero-scrim.night{opacity:calc(var(--night) * (.7 + .3 * var(--deep)))}
 .hero-accent-bar{
   position:fixed;top:0;left:50%;transform:translateX(-50%);
   width:402px;max-width:100vw;height:4px;z-index:2;
@@ -330,13 +405,17 @@ input{font-family:inherit}
   position:fixed;bottom:0;left:50%;transform:translateX(-50%);
   width:402px;max-width:100vw;
   background:var(--glass);backdrop-filter:blur(16px);
-  border-top:1px solid rgba(23,26,28,.08);display:grid;grid-template-columns:repeat(4,1fr);
+  border-top:1px solid var(--card-border);display:grid;grid-template-columns:repeat(4,1fr);
   padding:10px 8px max(26px, calc(10px + env(safe-area-inset-bottom, 0px)));z-index:30;
 }
 @media (max-width:440px){
   .bottom-nav{left:0;transform:none;width:100%}
 }
 .nav-item{
+  /* currentColor, not a colour baked into the SVG markup: the icons then
+     ride the same --ink ramp as the labels and dim with the page rather
+     than flipping in one step at the halfway mark. */
+  color:var(--ink-secondary);
   display:flex;flex-direction:column;align-items:center;gap:4px;
   text-decoration:none;cursor:pointer;transition:transform .12s ease;
   /* Each tab is a full page load. Without an instant pressed state the tap
@@ -346,6 +425,7 @@ input{font-family:inherit}
   touch-action:manipulation;-webkit-tap-highlight-color:transparent;
 }
 .nav-item:active{transform:scale(.94)}
+.nav-item.active{color:var(--ink)}
 .nav-item.nav-pressed .label{font-weight:700;color:var(--ink)}
 .nav-item.nav-pressed .nav-svg{stroke:var(--ink)}
 .dark .nav-item.nav-pressed .label{color:#fff}
@@ -362,6 +442,8 @@ input{font-family:inherit}
 .nav-item.active .label{font-weight:700;color:var(--ink)}
 
 .dark .bottom-nav{background:rgba(12,22,34,.92);border-top-color:rgba(255,255,255,.10)}
+.dark .nav-item{color:rgba(255,255,255,.68)}
+.dark .nav-item.active{color:#fff}
 .dark .nav-item .label{color:rgba(255,255,255,.68)}
 .dark .nav-item.active .label{color:#fff}
 .dark .nav-badge-dot{box-shadow:0 0 0 1.5px #0C1622}

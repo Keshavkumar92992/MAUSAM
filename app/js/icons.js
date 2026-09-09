@@ -56,7 +56,7 @@ export const ICONS = {
     </svg>`,
 };
 
-export function renderBottomNav(activeTab, alertCount = 0, isDark = false) {
+export function renderBottomNav(activeTab, alertCount = 0) {
   const tabs = [
     { id: 'home', label: t('nav.home'), href: './index.html', icon: ICONS.home },
     { id: 'radar', label: t('nav.radar'), href: './radar.html', icon: ICONS.radar },
@@ -65,15 +65,12 @@ export function renderBottomNav(activeTab, alertCount = 0, isDark = false) {
   ];
 
   return `
-    <nav class="bottom-nav ${isDark ? 'dark' : ''}">
+    <nav class="bottom-nav">
       ${tabs.map((t) => {
         const isActive = t.id === activeTab;
-        const color = isDark
-          ? (isActive ? '#FFFFFF' : 'rgba(255,255,255,0.65)')
-          : (isActive ? '#171A1C' : 'rgba(23,26,28,0.62)');
         const content = `
           <div class="nav-icon-wrap">
-            ${t.icon('nav-svg', color)}
+            ${t.icon('nav-svg', 'currentColor')}
             ${t.badge > 0 ? `<span class="nav-badge-dot"></span>` : ''}
           </div>
           <span class="label">${t.label}</span>
@@ -95,19 +92,6 @@ document.addEventListener('pointerdown', (e) => {
 }, { passive: true });
 
 
-// Sun, moon, or the split disc that means "follow the sun automatically".
-ICONS.theme = (cls = '', color = 'currentColor', mode = 'auto') => {
-  const open = `<svg class="${cls}" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">`;
-  if (mode === 'light') {
-    return open + '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2'
-      + 'M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4"/></svg>';
-  }
-  if (mode === 'dark') {
-    return open + '<path d="M20 13.4A8.2 8.2 0 1 1 10.6 4a6.6 6.6 0 0 0 9.4 9.4z" fill="' + color + '" stroke="none"/></svg>';
-  }
-  return open + '<circle cx="12" cy="12" r="7.5"/>'
-    + '<path d="M12 4.5a7.5 7.5 0 0 1 0 15z" fill="' + color + '" stroke="none"/></svg>';
-};
 
 export function renderStatusBar(isDark = false) {
   const now = new Date();

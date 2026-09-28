@@ -1,3 +1,4 @@
+import './pwa.js';
 import { loadState } from './utils.js';
 import { renderBottomNav, renderStatusBar } from './icons.js';
 import { t as tr } from './i18n.js';

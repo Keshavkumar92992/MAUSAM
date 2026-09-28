@@ -1,3 +1,4 @@
+import './pwa.js';
 import { fetchWeatherBundle } from './weatherApi.js';
 import { buildMetrics } from './metrics.js';
 import { generateAlerts } from './alertLogic.js';

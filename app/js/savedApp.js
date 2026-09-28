@@ -1,3 +1,4 @@
+import './pwa.js';
 import { geocodeCity, fetchDestinationSummary, getCurrentLocation } from './weatherApi.js';
 import { getSavedCities, addSavedCity, removeSavedCity } from './travel.js';
 import { loadState, saveState } from './utils.js';

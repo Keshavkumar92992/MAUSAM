@@ -1,3 +1,4 @@
+import './pwa.js';
 import { geocodeCity, fetchWeatherBundle, getCurrentLocation } from './weatherApi.js';
 import { buildMetrics } from './metrics.js';
 import { buildPersonaView } from './personas.js';

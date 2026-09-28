@@ -712,6 +712,18 @@ group('askUi — the card answers the question that was asked');
       if (ov) {
         truthy('which shows an orb, a caption and a way out',
           ov.querySelector('.conv-orb-core') && ov.querySelector('.conv-caption') && ov.querySelector('.conv-end'));
+        // The conversation is opened from the assistant sheet, and that
+        // sheet stays mounted underneath it. This shipped at z-index 80
+        // against the sheet's 85, so on a phone the whole surface rendered
+        // behind the sheet's translucent backdrop: a blurred orb under a
+        // grey wash, with the sheet sitting on top of it. Assert what is
+        // actually painted rather than the number, so any other way of
+        // covering it fails here too.
+        const mid = d.elementFromPoint(w.innerWidth / 2, w.innerHeight / 2);
+        truthy('and nothing is painted on top of it',
+          mid === ov || ov.contains(mid),
+          mid ? `${mid.className || mid.tagName} covers it — conv-overlay is at z-index `
+            + `${w.getComputedStyle(ov).zIndex}` : 'nothing found at the centre of the screen');
         truthy('and reports a state the stylesheet can animate',
           ['listening', 'thinking', 'speaking', 'idle'].includes(ov.dataset.state), ov.dataset.state);
         truthy('the caption is not raw markup or a missing key',

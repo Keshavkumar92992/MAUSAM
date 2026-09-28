@@ -726,7 +726,7 @@ input{font-family:inherit}
    and the sky strip that opens this sits well down the page, so the card
    would have landed off the bottom of the view. */
 .astro-overlay{
-  position:fixed;inset:0;z-index:80;background:rgba(8,13,22,.66);
+  position:fixed;inset:0;z-index:90;background:rgba(8,13,22,.66);
   display:flex;align-items:center;justify-content:center;padding:24px 16px;
   backdrop-filter:blur(6px);
 }
@@ -1338,8 +1338,13 @@ input{font-family:inherit}
 .ask-talk svg{width:18px;height:18px}
 .ask-talk:active{transform:scale(.985)}
 
+/* Above .ask-overlay (85), not below it. The conversation is opened from
+   the assistant sheet and that sheet stays mounted underneath, so at 80
+   this whole screen rendered *behind* the sheet's translucent dark backdrop
+   — you got a blurred orb through a grey wash, with the sheet sitting on
+   top of it. */
 .conv-overlay{
-  position:fixed;inset:0;z-index:80;
+  position:fixed;inset:0;z-index:90;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
   padding:32px 26px calc(32px + env(safe-area-inset-bottom, 0px));
   background:var(--page);text-align:center;

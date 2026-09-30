@@ -81,18 +81,15 @@
   .radar-back{font-size:12px;font-weight:600;color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:6px 12px;transition:all .15s}
   .radar-back:hover{background:rgba(255,255,255,.1);color:#fff}
   .radar-sub{font-size:11.5px;color:rgba(255,255,255,.6);margin-top:5px}
-  .layer-chips{display:flex;gap:8px;overflow-x:auto;padding:2px 20px 12px}
-  /* min-height + centring lifts these to a comfortable touch target; at the
-     old 34px they were easy to miss with a thumb. */
-  .layer-chip{flex:none;display:flex;align-items:center;min-height:42px;padding:0 15px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:rgba(255,255,255,.72);transition:all .18s;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-  .layer-chip:active{transform:scale(.95)}
-  .layer-chip:hover{background:rgba(255,255,255,.14);color:#fff}
-  .layer-chip.on{background:#F5F4EF;color:#0C1622;border-color:#F5F4EF}
   .map-panel{position:relative;flex:1;min-height:420px;margin:0 14px;border-radius:24px;overflow:hidden;background:radial-gradient(120% 90% at 50% 10%,#16283C,#0A121C 70%);border:1px solid rgba(255,255,255,.10)}
   .legend{position:absolute;left:12px;bottom:12px;display:flex;flex-direction:column;gap:6px;background:rgba(10,18,28,.7);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:10px 12px}
+  /* An author `display` beats the browser's own [hidden]{display:none},
+     so without this the legend stayed on screen over the satellite
+     image, captioning it with a rain scale it has nothing to do with. */
+  .legend[hidden]{display:none}
   .legend-title{font-size:8.5px;font-weight:700;letter-spacing:.14em;color:rgba(255,255,255,.72)}
   .legend-ramp{width:96px;height:7px;border-radius:4px}
-  .legend-ticks{display:flex;justify-content:space-between;font-size:9px;font-weight:600;color:rgba(255,255,255,.72)}
+  .legend-ticks{display:flex;justify-content:space-between;gap:8px;min-width:104px;font-size:9px;font-weight:600;color:rgba(255,255,255,.72);font-variant-numeric:tabular-nums}
   /* Named categories stack instead of sitting under a ramp: four words do
      not fit across 96px, and a colour you have to match against a gradient
      by eye is not a legend. */
@@ -100,7 +97,9 @@
   .legend-band{display:flex;align-items:center;gap:7px;font-size:9.5px;font-weight:600;color:rgba(255,255,255,.82)}
   .legend-band i{width:9px;height:9px;border-radius:2.5px;flex:none;font-style:normal}
   .legend-band em{font-style:normal;color:rgba(255,255,255,.5);margin-left:auto;padding-left:8px;font-variant-numeric:tabular-nums}
-  .range-badge{position:absolute;right:12px;top:12px;background:rgba(10,18,28,.7);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:7px 11px;font-size:10px;font-weight:600;color:rgba(255,255,255,.72)}
+  /* Top-left, because the layer button now owns the opposite corner and
+     the two were sitting on top of each other. */
+  .range-badge{position:absolute;left:12px;top:12px;background:rgba(10,18,28,.7);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:7px 11px;font-size:10px;font-weight:600;color:rgba(255,255,255,.72)}
   .controls{padding:14px 20px 6px}
   .controls-row{display:flex;align-items:center;gap:12px}
   .play-btn{width:38px;height:38px;flex:none;border-radius:19px;background:#F5F4EF;color:#0C1622;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;cursor:pointer;transition:transform .12s}
@@ -123,6 +122,11 @@
        screen and the nowcast card ends up behind the fixed nav bar.
        dvh tracks iOS Safari's collapsing address bar; vh is the fallback. */
     .radar-content{min-height:100vh;min-height:100dvh}
+    /* The map is flex:1 and grows into whatever is left, but a min-height
+       it cannot shrink below is a floor the rest of the column has to fit
+       around. At 420 it did not: the layer note pushed the nowcast card
+       under the nav bar. Let the map give up a little instead. */
+    .map-panel{min-height:352px}
   }
 
   @keyframes pulseRing {
@@ -132,6 +136,76 @@
   }
   .pulse-ring {
     animation: pulseRing 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  }
+
+  /* ---- the layer picker ---------------------------------------------
+     Windy keeps this in the top-right corner of the map, and that is the
+     corner this map has least going on in. Collapsed to a button because
+     the panel is 370px wide on a phone: eight permanent pills would cover
+     most of the country. */
+  .layer-btn{
+    position:absolute;right:12px;top:12px;z-index:6;
+    display:flex;align-items:center;gap:9px;
+    padding:8px 11px;border-radius:14px;
+    background:rgba(10,18,28,.78);backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,.16);
+    color:#F5F4EF;font-size:11px;font-weight:700;letter-spacing:.01em;
+    cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+    transition:background .16s,transform .12s;
+  }
+  .layer-btn:active{transform:scale(.96)}
+  .layer-btn[aria-expanded="true"]{background:#F5F4EF;color:#0C1622;border-color:#F5F4EF}
+  .layer-btn-bars{display:flex;flex-direction:column;gap:2.5px;width:13px}
+  .layer-btn-bars i{display:block;height:1.8px;border-radius:1px;background:currentColor}
+
+  .layer-menu{
+    position:absolute;right:12px;top:48px;z-index:6;
+    display:flex;flex-direction:column;align-items:flex-end;gap:6px;
+    max-height:calc(100% - 60px);overflow-y:auto;
+    padding-bottom:2px;
+  }
+  .layer-menu[hidden]{display:none}
+  .layer-item{
+    display:flex;align-items:center;gap:9px;
+    padding:6px 7px 6px 12px;border-radius:999px;
+    background:rgba(10,18,28,.8);backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,.14);
+    color:rgba(245,244,239,.88);font-size:11.5px;font-weight:600;white-space:nowrap;
+    cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+    transition:background .16s,color .16s,transform .12s;
+  }
+  .layer-item:active{transform:scale(.96)}
+  .layer-item.on{background:#F5F4EF;color:#0C1622;border-color:#F5F4EF}
+  /* The swatch is sampled from the layer's own ramp, so the menu can never
+     drift from what the map actually paints. */
+  .layer-item i{
+    width:22px;height:22px;border-radius:50%;flex:none;font-style:normal;
+    border:1px solid rgba(255,255,255,.28);
+    background-size:cover;background-position:center;
+  }
+  .layer-item.on i{border-color:rgba(12,22,34,.25)}
+
+  /* The interpolated field sits between the base map and the marks drawn
+     on top of it, so coastlines stay visible under the colour and city
+     labels stay legible over it. */
+  #field{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none}
+  #map{z-index:1}
+  #overlay{z-index:3}
+  .legend,.range-badge{z-index:5}
+
+  /* Whatever the current layer has to admit about itself. */
+  .layer-note{
+    margin-top:10px;padding:9px 12px;border-radius:12px;
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);
+    font-size:11px;line-height:1.45;color:rgba(255,255,255,.62);
+  }
+  .layer-note[hidden]{display:none}
+
+  /* Storm markers on the rain and thunderstorm layers. */
+  .storm-mark{animation:stormFlick 2.4s ease-in-out infinite}
+  @keyframes stormFlick{0%,100%{opacity:.55}50%{opacity:1}}
+  @media (prefers-reduced-motion:reduce){
+    .storm-mark{animation:none;opacity:.9}
   }
 </style>
 </head>
@@ -147,21 +221,26 @@
       <div class="radar-sub"><span id="radar-sub-prefix">Simulated radar</span> · <span id="city-label">New Delhi (Palam)</span> · <span id="stamp">now</span></div>
     </div>
 
-    <div class="layer-chips" id="layer-chips">
-      <div class="layer-chip on" data-layer="rain">Rainfall</div>
-      <div class="layer-chip" data-layer="cloud">Cloud cover</div>
-      <div class="layer-chip" data-layer="lightning">Lightning</div>
-      <div class="layer-chip" data-layer="wind">Wind</div>
-    </div>
-
     <div class="map-panel">
       <svg id="map" style="position:absolute;inset:0;width:100%;height:100%"></svg>
-      <div class="legend">
-        <div class="legend-title" id="legTitle">RAINFALL mm/h</div>
-        <div class="legend-ramp" id="legRamp" style="background:linear-gradient(90deg,#4FB8C9,#3E8FD8,#7A5AA8,#C2452D)"></div>
-        <div class="legend-ticks" id="legTicks"><span>2.5</span><span>15</span><span>65+</span></div>
+      <canvas id="field"></canvas>
+      <svg id="overlay" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></svg>
+
+      <!-- The layer picker, in the corner Windy puts it. Collapsed to a
+           button by default: the map is 370px wide on a phone and a
+           permanent list of eight would cover the country it describes. -->
+      <button class="layer-btn" id="layerBtn" type="button" aria-expanded="false" aria-controls="layerMenu">
+        <span id="layerBtnLabel">Layers</span>
+        <span class="layer-btn-bars" aria-hidden="true"><i></i><i></i><i></i></span>
+      </button>
+      <div class="layer-menu" id="layerMenu" role="menu" hidden></div>
+
+      <div class="legend" id="legend">
+        <div class="legend-title" id="legTitle">RAIN RATE mm/h</div>
+        <div class="legend-ramp" id="legRamp"></div>
+        <div class="legend-ticks" id="legTicks"></div>
       </div>
-      <div class="range-badge">Range 250 km</div>
+      <div class="range-badge">All India · hourly</div>
     </div>
 
     <div class="controls">
@@ -172,6 +251,7 @@
           <div class="slider-ticks"><span>−30 min</span><span>NOW</span><span>+2 h nowcast</span></div>
         </div>
       </div>
+      <div class="layer-note" id="layerNote" hidden></div>
       <div class="nowcast-card">
         <div class="nowcast-badge">!</div>
         <div>

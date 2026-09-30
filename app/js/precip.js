@@ -1,4 +1,4 @@
-// Real precipitation for the radar map.
+// What the rain on the radar *means*.
 //
 // The map used to draw seven hardcoded blobs drifting across India on a
 // timer. It looked like a radar and was entirely invented — which is a
@@ -6,11 +6,16 @@
 // named intensity categories on top of made-up numbers would only have made
 // it more convincing without making it any more true.
 //
-// This fetches actual forecast precipitation for a grid of points across
-// the country in a single request, and bands it by rate. If the request
-// fails the caller falls back to the old simulation and says so in the
-// header, because a blank map is worse than an honestly-labelled fake one.
+// Where the numbers come from now lives in grid.js, which fetches every
+// variable the radar draws in one request. This file is only the rain: how
+// a rate is banded, what each band is called, and how to say in one
+// sentence what the map is showing.
 import { t, registerEntries } from './i18n.js';
+import { TRACE as _TRACE } from './scales.js';
+
+// Re-exported so the radar, and the tests written against them, can keep
+// importing the grid from here as they always have.
+export { STEP, gridPoints, fetchGrid, slotAt, accumulate } from './grid.js';
 
 registerEntries({
   'precip.light': { en: 'Light', hi: 'हल्की', bn: 'হালকা', ta: 'லேசான' },
@@ -37,7 +42,7 @@ export const BANDS = [
 
 // Below this there is nothing worth drawing — a hundredth of a millimetre
 // in an hour is not rain, it is model noise.
-export const TRACE = 0.1;
+export const TRACE = _TRACE;
 
 export function bandFor(mm) {
   if (!(mm >= TRACE)) return null;
@@ -45,101 +50,6 @@ export function bandFor(mm) {
 }
 
 export const bandLabel = (key) => t(`precip.${key}`);
-
-// ---------- the grid ----------
-
-// 2° is about 220 km. Coarse for a radar and honest for what this is: a
-// national picture from a forecast model, not a Doppler sweep.
-//
-// The spacing is a quota decision as much as a visual one. Open-Meteo bills
-// a multi-coordinate request per *coordinate*, so a 1.5° grid was 150 calls
-// against a shared IP limit on every single view of this page — which is
-// how testing it exhausted the quota inside an afternoon. At 2° it is
-// nearer 80, and the cache below means most views cost nothing at all.
-export const STEP = 2;
-const BBOX = { latMin: 7, latMax: 36, lonMin: 68, lonMax: 97.5 };
-
-// `inside` is passed in rather than imported so this module never has to
-// know about d3 or the topojson the map already loaded.
-export function gridPoints(inside) {
-  const pts = [];
-  for (let lat = BBOX.latMin; lat <= BBOX.latMax; lat += STEP) {
-    for (let lon = BBOX.lonMin; lon <= BBOX.lonMax; lon += STEP) {
-      if (inside([lon, lat])) pts.push({ lat: +lat.toFixed(2), lon: +lon.toFixed(2) });
-    }
-  }
-  return pts;
-}
-
-// The model publishes hourly. Refetching on every visit to the radar spends
-// the quota on numbers that have not changed, so a run is kept for a while
-// and reused — keyed on the grid itself, so changing the spacing or the
-// bounding box invalidates it rather than serving a stale shape.
-const CACHE_KEY = 'mausam.precip.v1';
-const CACHE_MS = 20 * 60 * 1000;
-
-function readCache(sig) {
-  try {
-    const c = JSON.parse(localStorage.getItem(CACHE_KEY));
-    if (!c || c.sig !== sig) return null;
-    if (Date.now() - c.at > CACHE_MS) return null;
-    // A cached run also goes stale once the clock passes its last hour.
-    if (!c.grid?.[0]?.times?.length) return null;
-    if (Date.now() > c.grid[0].times[c.grid[0].times.length - 1] + 3600000) return null;
-    return c.grid;
-  } catch { return null; }
-}
-
-function writeCache(sig, grid) {
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ sig, at: Date.now(), grid })); } catch { /* full or private */ }
-}
-
-// One request for every point. timezone=UTC on purpose: the labels come back
-// with no offset either way, and asking for UTC means appending a Z is
-// enough to get a real instant — no city offset to apply, and no chance of
-// reading the grid an hour out the way the forecast screens once did.
-export async function fetchGrid(points, { signal } = {}) {
-  if (!points.length) return null;
-  const sig = `${STEP}|${points.length}|${points[0].lat},${points[0].lon}`;
-  const cached = readCache(sig);
-  if (cached) return cached;
-  const url = 'https://api.open-meteo.com/v1/forecast'
-    + `?latitude=${points.map((p) => p.lat).join(',')}`
-    + `&longitude=${points.map((p) => p.lon).join(',')}`
-    + '&hourly=precipitation&past_hours=1&forecast_hours=4&timezone=UTC';
-
-  const res = await fetch(url, { signal });
-  if (!res.ok) {
-    const err = new Error('precipitation grid failed');
-    err.status = res.status;
-    throw err;
-  }
-  const raw = await res.json();
-  // A single coordinate comes back as an object, many as an array. The grid
-  // is always many, but normalise rather than depend on it.
-  const list = Array.isArray(raw) ? raw : [raw];
-  const grid = list.map((r, i) => ({
-    lat: points[i]?.lat ?? r.latitude,
-    lon: points[i]?.lon ?? r.longitude,
-    times: (r.hourly?.time || []).map((s) => Date.parse(`${s}Z`)),
-    mm: r.hourly?.precipitation || [],
-  }));
-  writeCache(sig, grid);
-  return grid;
-}
-
-// Which hourly slot covers `when`. The map's slider runs from half an hour
-// back to two hours ahead, and the data is hourly, so several slider
-// positions legitimately land on the same slot.
-export function slotAt(grid, when) {
-  const times = grid?.[0]?.times || [];
-  if (!times.length) return 0;
-  let idx = 0;
-  for (let i = 0; i < times.length; i++) {
-    if (times[i] <= when) idx = i; else break;
-  }
-  return idx;
-}
 
 // What the map is showing right now, in one sentence for the nowcast card.
 export function summarise(grid, slot) {
